@@ -1,0 +1,6 @@
+{
+  "name": "Weather Wise",
+  "filename": "dist/weather-wise.js",
+  "homeassistant": "2024.6.0",
+  "hacs": "2.0.0"
+}
