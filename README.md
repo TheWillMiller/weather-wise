@@ -3,6 +3,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/TheWillMiller/weather-wise)](https://github.com/TheWillMiller/weather-wise/releases)
 [![Validate](https://img.shields.io/github/actions/workflow/status/TheWillMiller/weather-wise/validate.yml?branch=main&label=validate)](https://github.com/TheWillMiller/weather-wise/actions/workflows/validate.yml)
 [![GitHub stars](https://img.shields.io/github/stars/TheWillMiller/weather-wise?label=stars)](https://github.com/TheWillMiller/weather-wise/stargazers)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?logo=buymeacoffee)](https://buymeacoffee.com/thewillmiller)
 
 **Latest beta:** `v0.2.0-beta.4`
 
@@ -230,6 +231,14 @@ debug:
 ```
 
 Remove it after testing.
+
+## Support
+
+WeatherWise is free and has no telemetry, ads, popups, tracking pixels, or in-card donation prompts.
+
+If WeatherWise helps your dashboard, you can support development here:
+
+[Buy Me a Coffee](https://buymeacoffee.com/thewillmiller)
 
 ## Troubleshooting
 

@@ -11,3 +11,7 @@ WeatherWise is early beta software.
 ## Support
 
 WeatherWise has no telemetry, ads, popups, tracking pixels, or in-card donation prompts.
+
+If WeatherWise helps your dashboard, you can support development here:
+
+https://buymeacoffee.com/thewillmiller
