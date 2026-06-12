@@ -3,7 +3,7 @@
  * Home Assistant weather dashboard card with forecasts and optional radar.
  */
 
-const CARD_VERSION = "0.2.0-beta.3";
+const CARD_VERSION = "0.2.0-beta.4";
 const FORECAST_REFRESH_MS = 15 * 60 * 1000;
 const CARD_TYPES = ["weatherwise-card", "weather-wise-card"];
 
@@ -293,7 +293,6 @@ class WeatherWiseCard extends HTMLElement {
     const stateObj = this._hass?.states?.[this._config.entity];
     const attrs = stateObj?.attributes || {};
     const condition = stateObj?.state || "unavailable";
-    const title = this._config.title || attrs.friendly_name || "Local Weather";
     const units = this._unitContext(attrs);
     const temp = this._displayTemp(attrs.temperature, units);
     const humidity = this._humidity(attrs);
@@ -314,10 +313,6 @@ class WeatherWiseCard extends HTMLElement {
         <div class="card-outer">
           <div class="card-grid ${this._config.show_radar && provider !== "none" ? "" : "no-radar"}">
             <section class="left">
-              <div class="header">
-                <div class="title">${this._escape(title)}</div>
-                <div class="subtitle">${this._escape(WEATHERWISE_COUNTRIES[this._config.country])}</div>
-              </div>
               <div class="clock-row">
                 <div class="clock-time" id="clock-time">${this._clockTime(now)}</div>
                 <div class="clock-ampm" id="clock-ampm">${now.getHours() >= 12 ? "PM" : "AM"}</div>
@@ -895,9 +890,12 @@ class WeatherWiseCard extends HTMLElement {
 
   _icon(condition, size = 36) {
     const c = String(condition || "").toLowerCase().replace(/[-_]/g, " ");
+    const isNight = c.includes("night");
     if (c.includes("lightning") || c.includes("thunder")) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><ellipse cx="22" cy="15" rx="11" ry="8" fill="#94a3b8"/><ellipse cx="14" cy="18" rx="9" ry="6" fill="#cbd5e1"/><polygon points="22,22 16,34 21,31 17,41 28,27 22,30" fill="#fbbf24"/><line x1="14" y1="28" x2="12" y2="34" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/><line x1="27" y1="28" x2="25" y2="34" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/></svg>`;
     if (c.includes("rain") || c.includes("shower") || c.includes("drizzle")) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><ellipse cx="22" cy="14" rx="11" ry="8" fill="#94a3b8"/><ellipse cx="14" cy="17" rx="9" ry="6" fill="#cbd5e1"/><line x1="14" y1="26" x2="12" y2="33" stroke="#38bdf8" stroke-width="2.3" stroke-linecap="round"/><line x1="20" y1="26" x2="18" y2="33" stroke="#38bdf8" stroke-width="2.3" stroke-linecap="round"/><line x1="26" y1="26" x2="24" y2="33" stroke="#38bdf8" stroke-width="2.3" stroke-linecap="round"/></svg>`;
     if (c.includes("snow") || c.includes("sleet") || c.includes("hail")) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><ellipse cx="22" cy="14" rx="11" ry="8" fill="#94a3b8"/><ellipse cx="14" cy="17" rx="9" ry="6" fill="#cbd5e1"/><text x="10" y="34" font-size="13" fill="#93c5fd">*</text><text x="23" y="34" font-size="13" fill="#93c5fd">*</text></svg>`;
+    if ((c.includes("clear") || c.includes("sunny")) && isNight) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><circle cx="23" cy="20" r="10" fill="#fbbf24"/><path d="M24 8q-10 4-10 14 0 8 7 12Q8 31 8 20 8 8 20 5q-1 2 4 3Z" fill="#1e3a5f"/></svg>`;
+    if ((c.includes("partly") || c.includes("mostly cloudy") || c.includes("mostlycloudy")) && isNight) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><circle cx="16" cy="17" r="8" fill="#fbbf24"/><path d="M17 8q-7 3-7 10 0 5 4 8Q6 24 6 17 6 8 15 6q-1 1 2 2Z" fill="#1e3a5f"/><ellipse cx="27" cy="24" rx="10" ry="7" fill="#94a3b8"/><ellipse cx="20" cy="27" rx="8" ry="6" fill="#cbd5e1"/></svg>`;
     if (c.includes("sunny") || c.includes("clear")) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="8.5" fill="#fbbf24"/><g stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"><line x1="20" y1="4" x2="20" y2="8"/><line x1="20" y1="32" x2="20" y2="36"/><line x1="4" y1="20" x2="8" y2="20"/><line x1="32" y1="20" x2="36" y2="20"/></g></svg>`;
     if (c.includes("partly") || c.includes("mostly cloudy") || c.includes("mostlycloudy")) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><circle cx="14" cy="19" r="7" fill="#fbbf24"/><ellipse cx="26" cy="22" rx="11" ry="8" fill="#94a3b8"/><ellipse cx="18" cy="25" rx="9" ry="7" fill="#cbd5e1"/></svg>`;
     if (c.includes("fog") || c.includes("mist")) return `<svg width="${size}" height="${size}" viewBox="0 0 40 40"><line x1="8" y1="16" x2="32" y2="16" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/><line x1="6" y1="22" x2="34" y2="22" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/><line x1="10" y1="28" x2="30" y2="28" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/></svg>`;
@@ -915,10 +913,7 @@ class WeatherWiseCard extends HTMLElement {
       .card-outer::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ww-wave) 62%,transparent),transparent)}
       .card-grid{display:grid;grid-template-columns:minmax(300px,24%) minmax(560px,1fr) minmax(430px,32%);height:var(--weatherwise-card-height,clamp(386px,20cqw,440px));min-height:0;max-height:var(--weatherwise-card-max-height,480px)}
       .card-grid.no-radar{grid-template-columns:minmax(260px,34%) minmax(0,1fr)}
-      .left{min-width:0;display:flex;flex-direction:column;padding:12px 22px 10px;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08));border-right:1px solid rgba(255,255,255,0.22);overflow:hidden}
-      .header{display:flex;align-items:baseline;gap:10px;margin-bottom:5px;flex-wrap:wrap}
-      .title{font-size:28px;font-weight:800;color:var(--ww-text);white-space:nowrap;letter-spacing:0}
-      .subtitle{font-size:13px;color:var(--ww-muted);letter-spacing:.05em;text-transform:uppercase;font-weight:650;white-space:nowrap}
+      .left{min-width:0;display:flex;flex-direction:column;padding:18px 22px 10px;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08));border-right:1px solid rgba(255,255,255,0.22);overflow:hidden}
       .clock-row{display:flex;align-items:baseline;gap:8px;line-height:1}
       .clock-time{font-size:64px;font-weight:500;color:var(--ww-text);letter-spacing:0}
       .clock-ampm{font-size:18px;font-weight:750;color:var(--ww-muted)}
@@ -988,8 +983,8 @@ class WeatherWiseCard extends HTMLElement {
       .debug-row code{color:var(--ww-text)}
       @container(max-width:1500px){.card-grid{grid-template-columns:minmax(300px,24%) minmax(560px,1fr) minmax(430px,32%)}.left{padding:12px 18px 10px}.center{padding:16px 20px}.clock-time{font-size:58px}.temp-now{font-size:46px}.cond-name{font-size:25px}.daily-strip{min-height:130px;max-height:150px}.hour-row{grid-template-columns:44px 22px 34px 1fr;gap:6px}.stat{padding:6px 8px;gap:7px}}
       @container(max-width:1180px){.card-grid{grid-template-columns:minmax(250px,30%) minmax(0,1fr);height:var(--weatherwise-card-height,clamp(520px,52cqw,620px))}.center{border-right:0}.right{grid-column:1 / -1;height:220px;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}#rmap{height:220px}.daily-strip{min-height:150px;max-height:none}}
-      @container(max-width:720px){.card-grid,.card-grid.no-radar{display:flex;flex-direction:column;height:auto;max-height:none}.left,.center{border-right:0;overflow:visible}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}.title{font-size:24px}}
-      @media(max-width:760px){.card-grid,.card-grid.no-radar{display:flex;flex-direction:column;height:auto;max-height:none}.left,.center{border-right:0;overflow:visible}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}.title{font-size:24px}}
+      @container(max-width:720px){.card-grid,.card-grid.no-radar{display:flex;flex-direction:column;height:auto;max-height:none}.left,.center{border-right:0;overflow:visible}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
+      @media(max-width:760px){.card-grid,.card-grid.no-radar{display:flex;flex-direction:column;height:auto;max-height:none}.left,.center{border-right:0;overflow:visible}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
     `;
   }
 }

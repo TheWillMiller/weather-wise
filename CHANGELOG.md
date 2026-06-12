@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0-beta.4
+
+### Changed
+
+- Removed the visible left-column title/region header from the rendered card for a cleaner wide-panel look.
+
+### Fixed
+
+- Fixed `clear-night` and night partly-cloudy conditions rendering with daytime sun icons.
+
 ## 0.2.0-beta.3
 
 ### Fixed
