@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+### Added
+
+- Added visual editor controls for forecast card count.
+- Added visual editor toggles to show or hide the hourly/forecast list and daily forecast cards.
+
+### Fixed
+
+- Made `wide_panel` visibly honor the selected layout inside narrow Home Assistant editor previews.
+- Connected `forecast_count` to rendered daily/twice-daily forecast cards.
+
 ## 0.3.0
 
 ### Changed

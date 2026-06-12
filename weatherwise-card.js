@@ -3,7 +3,7 @@
  * Home Assistant weather dashboard card with forecasts and optional radar.
  */
 
-const CARD_VERSION = "0.3.0";
+const CARD_VERSION = "0.3.1";
 const FORECAST_REFRESH_MS = 15 * 60 * 1000;
 const CARD_TYPES = ["weatherwise-card", "weather-wise-card"];
 
@@ -67,6 +67,9 @@ class WeatherWiseCard extends HTMLElement {
       units: "auto",
       layout: "auto",
       hourly_count: 5,
+      forecast_count: 5,
+      show_timeline: true,
+      show_forecast: true,
       show_radar: true,
       radar_controls: true,
       radar_style: "standard",
@@ -220,6 +223,9 @@ class WeatherWiseCard extends HTMLElement {
       units,
       layout: "auto",
       hourly_count: 5,
+      forecast_count: 5,
+      show_timeline: true,
+      show_forecast: true,
       show_radar: true,
       show_map_controls: true,
       radar_controls: true,
@@ -239,6 +245,9 @@ class WeatherWiseCard extends HTMLElement {
       latitude: this._numberOr(config.latitude, undefined),
       longitude: this._numberOr(config.longitude, undefined),
       hourly_count: Math.max(1, Math.min(24, Number(config.hourly_count) || 5)),
+      forecast_count: Math.max(1, Math.min(7, Number(config.forecast_count) || 5)),
+      show_timeline: config.show_timeline !== false,
+      show_forecast: config.show_forecast !== false,
       show_radar: config.show_radar !== false,
       show_map_controls: config.show_map_controls !== false,
       radar_controls: config.radar_controls !== false,
@@ -277,9 +286,12 @@ class WeatherWiseCard extends HTMLElement {
         this._config.theme_mode,
         this._config.units,
         this._config.show_radar,
+        this._config.show_timeline,
+        this._config.show_forecast,
         this._config.radar_controls,
         this._config.show_warning_overlay,
-        this._config.hourly_count
+        this._config.hourly_count,
+        this._config.forecast_count
       ]
     });
   }
@@ -345,7 +357,7 @@ class WeatherWiseCard extends HTMLElement {
       <style>${this._styles()}</style>
       <ha-card>
         <div class="card-outer">
-          <div class="card-grid layout-${this._escape(layout)} ${this._config.show_radar && provider !== "none" ? "" : "no-radar"}" style="--ww-hourly-count:${Math.max(1, Math.min(24, Number(this._config.hourly_count) || 5))}">
+          <div class="card-grid layout-${this._escape(layout)} ${this._config.show_radar && provider !== "none" ? "" : "no-radar"} ${this._config.show_timeline === false ? "no-timeline" : ""} ${this._config.show_forecast === false ? "no-forecast" : ""}" style="--ww-hourly-count:${Math.max(1, Math.min(24, Number(this._config.hourly_count) || 5))};--ww-forecast-count:${Math.max(1, Math.min(7, Number(this._config.forecast_count) || 5))}">
             <section class="left">
               <div class="clock-panel">
                 <div class="clock-row">
@@ -354,8 +366,10 @@ class WeatherWiseCard extends HTMLElement {
                 </div>
                 <div class="clock-date" id="clock-date">${this._longDate(now)}</div>
               </div>
-              <div class="section-title">${this._timelineTitle(timelineMode)}</div>
-              <div class="hourly-left">${this._renderTimeline(timeline, units, timelineMode)}</div>
+              ${this._config.show_timeline === false ? "" : `
+                <div class="section-title">${this._timelineTitle(timelineMode)}</div>
+                <div class="hourly-left">${this._renderTimeline(timeline, units, timelineMode)}</div>
+              `}
             </section>
             <section class="center">
               <div class="current-row">
@@ -370,7 +384,7 @@ class WeatherWiseCard extends HTMLElement {
                   <div class="temp-hilo">${hiLo}</div>
                 </div>
               </div>
-              <div class="daily-strip">${this._renderDaily(mainPeriods, units)}</div>
+              ${this._config.show_forecast === false ? "" : `<div class="daily-strip">${this._renderDaily(mainPeriods, units)}</div>`}
               <div class="stats-row">
                 ${this._stat("humidity", "Humidity", `${humidity}%`)}
                 ${this._stat("wind", "Wind", wind)}
@@ -498,7 +512,7 @@ class WeatherWiseCard extends HTMLElement {
 
   _renderDaily(periods, units) {
     if (!periods.length) return `<div class="loading-note">Waiting for Home Assistant forecast data.</div>`;
-    return periods.slice(0, 5).map((item) => {
+    return periods.slice(0, Number(this._config.forecast_count) || 5).map((item) => {
       const period = item.is_daytime === undefined ? "" : item.is_daytime ? "Day" : "Night";
       return `
         <div class="fc-slot">
@@ -1070,7 +1084,7 @@ class WeatherWiseCard extends HTMLElement {
       .temp-block{text-align:right;flex-shrink:0;min-width:max-content}
       .temp-now{font-size:66px;font-weight:800;color:var(--ww-text);line-height:1.08;letter-spacing:0}
       .temp-hilo{font-size:20px;color:var(--ww-muted);font-weight:800;margin-top:9px}
-      .daily-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;min-height:188px;max-height:232px;margin-bottom:12px;flex:1}
+      .daily-strip{display:grid;grid-template-columns:repeat(var(--ww-forecast-count,5),minmax(0,1fr));gap:12px;min-height:188px;max-height:232px;margin-bottom:12px;flex:1}
       .fc-slot{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px 8px;background:var(--ww-panel);border-radius:14px;border:1px solid var(--ww-line);min-width:0}
       .fc-day{font-size:22px;font-weight:850;color:var(--ww-text);text-transform:uppercase;line-height:1.05;text-align:center}
       .fc-period{font-size:14px;font-weight:900;color:var(--ww-muted);text-transform:uppercase;letter-spacing:.045em;margin-top:2px;min-height:16px;line-height:1.05;text-align:center}
@@ -1147,12 +1161,13 @@ class WeatherWiseCard extends HTMLElement {
       .debug-panel{margin-top:10px;background:var(--ww-panel);border:1px solid var(--ww-line);border-radius:12px;padding:8px;font-size:12px;color:var(--ww-muted)}
       .debug-row{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
       .debug-row code{color:var(--ww-text)}
+      .card-grid.no-forecast .daily-strip{display:none}.card-grid.no-forecast .center{justify-content:center}
       @container(max-width:1500px){.card-grid{grid-template-columns:minmax(310px,25%) minmax(570px,1fr) minmax(410px,31%);height:var(--weatherwise-card-height,clamp(440px,25cqw,520px))}.left{padding:14px 18px 10px}.center{padding:16px 20px}.clock-time{font-size:70px}.clock-date{font-size:18px}.section-title,.current-label{font-size:15px}.temp-now{font-size:58px}.temp-hilo{font-size:18px}.cond-name{font-size:32px}.updated-note{font-size:13px}.daily-strip{min-height:172px;max-height:212px}.fc-day{font-size:20px}.fc-period{font-size:13px}.fc-icon{width:58px;height:58px}.fc-icon svg{width:54px;height:54px}.fc-temp{font-size:43px}.hour-row{grid-template-columns:50px 24px 42px 1fr;gap:7px;min-height:32px}.hour-time-left{font-size:14px}.hour-temp-left{font-size:15px}.stat{padding:9px 11px;gap:9px;min-height:62px}.stat-lbl{font-size:11px}.stat-val{font-size:17px}}
       @container(max-width:980px){.card-grid:not(.layout-wide_panel){grid-template-columns:minmax(250px,30%) minmax(0,1fr);height:var(--weatherwise-card-height,clamp(560px,58cqw,680px))}.card-grid:not(.layout-wide_panel) .center{border-right:0}.card-grid:not(.layout-wide_panel) .right{grid-column:1 / -1;height:240px;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid:not(.layout-wide_panel) #rmap{height:240px}.card-grid:not(.layout-wide_panel) .daily-strip{min-height:150px;max-height:none}}
       .card-grid.layout-wide_panel{grid-template-columns:minmax(260px,25%) minmax(430px,1fr) minmax(320px,31%);height:var(--weatherwise-card-height,clamp(390px,22cqw,500px))}
       .card-grid.layout-stacked,.card-grid.layout-compact{display:flex;flex-direction:column;height:auto;max-height:none}.card-grid.layout-stacked .left,.card-grid.layout-compact .left{display:contents}.card-grid.layout-stacked .clock-panel,.card-grid.layout-compact .clock-panel{order:1;padding:18px 22px 0;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08))}.card-grid.layout-stacked .center,.card-grid.layout-compact .center{order:2;border-right:0;overflow:visible}.card-grid.layout-stacked .left>.section-title,.card-grid.layout-compact .left>.section-title{order:3;padding:0 22px;margin-top:4px}.card-grid.layout-stacked .hourly-left,.card-grid.layout-compact .hourly-left{order:4;flex:none;overflow:visible;padding:0 22px 16px}.card-grid.layout-stacked .right,.card-grid.layout-compact .right{order:5;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid.layout-stacked .right,.card-grid.layout-stacked #rmap{height:300px;min-height:300px}.card-grid.layout-compact .right,.card-grid.layout-compact #rmap{height:220px;min-height:220px}.card-grid.layout-compact .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));min-height:150px}.card-grid.layout-compact .fc-slot:nth-child(n+4){display:none}
-      @container(max-width:720px){.card-grid,.card-grid.no-radar{display:flex;flex-direction:column;height:auto;max-height:none}.left{display:contents}.clock-panel{order:1;padding:18px 20px 0}.center{order:2;border-right:0;overflow:visible}.left>.section-title{order:3;padding:0 20px}.hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.right{order:5}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
-      @media(max-width:760px){.card-grid,.card-grid.no-radar{display:flex;flex-direction:column;height:auto;max-height:none}.left{display:contents}.clock-panel{order:1;padding:18px 20px 0}.center{order:2;border-right:0;overflow:visible}.left>.section-title{order:3;padding:0 20px}.hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.right{order:5}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
+      @container(max-width:720px){.card-grid:not(.layout-wide_panel),.card-grid.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid:not(.layout-wide_panel) .left{display:contents}.card-grid:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid:not(.layout-wide_panel) .center{order:2;border-right:0;overflow:visible}.card-grid:not(.layout-wide_panel) .left>.section-title{order:3;padding:0 20px}.card-grid:not(.layout-wide_panel) .hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.card-grid:not(.layout-wide_panel) .right{order:5}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.card-grid:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}.card-grid.layout-wide_panel{display:grid;grid-template-columns:minmax(120px,24%) minmax(230px,1fr) minmax(150px,28%);height:360px;max-height:360px}.card-grid.layout-wide_panel .left{display:flex;padding:12px 10px}.card-grid.layout-wide_panel .center{padding:12px 10px}.card-grid.layout-wide_panel .clock-time{font-size:38px}.card-grid.layout-wide_panel .clock-date{font-size:12px;margin:5px 0 8px}.card-grid.layout-wide_panel .current-icon{width:44px;height:44px}.card-grid.layout-wide_panel .cond-name{font-size:21px}.card-grid.layout-wide_panel .temp-now{font-size:38px}.card-grid.layout-wide_panel .daily-strip{grid-template-columns:repeat(var(--ww-forecast-count,5),minmax(70px,1fr));gap:6px;overflow:hidden}.card-grid.layout-wide_panel .fc-temp{font-size:28px}.card-grid.layout-wide_panel .stats-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.card-grid.layout-wide_panel .right,.card-grid.layout-wide_panel #rmap{height:100%;min-height:0}}
+      @media(max-width:760px){.card-grid:not(.layout-wide_panel),.card-grid.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid:not(.layout-wide_panel) .left{display:contents}.card-grid:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid:not(.layout-wide_panel) .center{order:2;border-right:0;overflow:visible}.card-grid:not(.layout-wide_panel) .left>.section-title{order:3;padding:0 20px}.card-grid:not(.layout-wide_panel) .hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.card-grid:not(.layout-wide_panel) .right{order:5}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.card-grid:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
       @media(prefers-reduced-motion:reduce){:host([animations]) .ww-sun-rays,:host([animations]) .ww-sun-core,:host([animations]) .ww-cloud,:host([animations]) .ww-rain,:host([animations]) .ww-snow,:host([animations]) .ww-bolt,:host([animations]) .ww-moon,:host([animations]) .ww-moon-glow,:host([animations]) .ww-fog,:host([animations]) .hour-row,:host([animations]) .fc-slot{animation:none!important}:host([animations]) .hour-bar-fill{transition:none!important}}
     `;
   }
@@ -1205,8 +1220,8 @@ class WeatherWiseCardEditor extends HTMLElement {
   }
 
   _setValue(key, value) {
-    const numberKeys = ["latitude", "longitude", "hourly_count", "radar_zoom", "radar_speed"];
-    const booleanKeys = ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay", "show_animations"];
+    const numberKeys = ["latitude", "longitude", "hourly_count", "forecast_count", "radar_zoom", "radar_speed"];
+    const booleanKeys = ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay", "show_animations", "show_timeline", "show_forecast"];
     let nextValue = value;
     if (numberKeys.includes(key)) nextValue = value === "" ? undefined : Number(value);
     if (booleanKeys.includes(key)) nextValue = Boolean(value);
@@ -1327,8 +1342,11 @@ class WeatherWiseCardEditor extends HTMLElement {
                 ${Object.entries(WEATHERWISE_LAYOUTS).map(([value, label]) => `<option value="${value}" ${(config.layout || "auto") === value ? "selected" : ""}>${label}</option>`).join("")}
               </select>
             </label>
-            <label>Hourly rows <input id="hourly_count" type="number" min="1" max="24" value="${this._escape(config.hourly_count || 5)}"></label>
+            <label>Forecast list rows <input id="hourly_count" type="number" min="1" max="24" value="${this._escape(config.hourly_count || 5)}"></label>
+            <label>Forecast cards <input id="forecast_count" type="number" min="1" max="7" value="${this._escape(config.forecast_count || 5)}"></label>
           </div>
+          <label class="check"><input id="show_timeline" type="checkbox" ${config.show_timeline === false ? "" : "checked"}> Show hourly / forecast list</label>
+          <label class="check"><input id="show_forecast" type="checkbox" ${config.show_forecast === false ? "" : "checked"}> Show daily forecast cards</label>
           <label class="check"><input id="show_animations" type="checkbox" ${config.show_animations === false ? "" : "checked"}> Subtle weather animations</label>
           <div class="hint">Animations automatically pause when the browser or device requests reduced motion.</div>
         </div>
@@ -1348,10 +1366,10 @@ class WeatherWiseCardEditor extends HTMLElement {
         </div>
       </div>
     `;
-    ["entity", "humidity_entity", "country", "radar_provider", "radar_style", "radar_basemap", "radar_timeline", "title", "units", "theme_mode", "layout", "latitude", "longitude", "hourly_count", "radar_zoom", "radar_speed"].forEach((id) => {
+    ["entity", "humidity_entity", "country", "radar_provider", "radar_style", "radar_basemap", "radar_timeline", "title", "units", "theme_mode", "layout", "latitude", "longitude", "hourly_count", "forecast_count", "radar_zoom", "radar_speed"].forEach((id) => {
       this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setValue(id, event.target.value));
     });
-    ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay", "show_animations"].forEach((id) => {
+    ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay", "show_animations", "show_timeline", "show_forecast"].forEach((id) => {
       this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setValue(id, event.target.checked));
     });
   }

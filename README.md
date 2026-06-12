@@ -5,7 +5,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/TheWillMiller/weather-wise?label=stars)](https://github.com/TheWillMiller/weather-wise/stargazers)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?logo=buymeacoffee)](https://buymeacoffee.com/thewillmiller)
 
-**Latest release:** `v0.3.0`
+**Latest release:** `v0.3.1`
 
 WeatherWise is a Home Assistant dashboard (Lovelace) custom card for current weather, hourly and daily forecasts, sunrise and sunset, wind, humidity, and optional radar. It follows the TideWise/RiverWise visual language while staying a dashboard card, not a backend integration.
 
@@ -119,7 +119,7 @@ type: module
 For quick testing before installing locally, you can add this dashboard resource:
 
 ```yaml
-url: https://cdn.jsdelivr.net/gh/TheWillMiller/weather-wise@v0.3.0/weatherwise-card.js
+url: https://cdn.jsdelivr.net/gh/TheWillMiller/weather-wise@v0.3.1/weatherwise-card.js
 type: module
 ```
 
@@ -201,7 +201,8 @@ WeatherWise includes a Home Assistant visual editor. When adding the card from t
 - Choose United States, Canada, United Kingdom, or global/other setup
 - Choose automatic radar, NOAA radar, RainViewer radar, or no radar
 - Choose radar timeline, style, map style, and radar loop speed
-- Set title, units, layout, hourly row count, and theme mode
+- Set title, units, layout, forecast counts, and theme mode
+- Show or hide the hourly/forecast list and daily forecast cards
 - Enable or disable subtle weather animations
 - Set radar latitude/longitude and zoom
 - Show or hide the radar panel
@@ -222,7 +223,10 @@ WeatherWise includes a Home Assistant visual editor. When adding the card from t
 | `theme_mode` | No | `weatherwise` | `weatherwise` or `auto`. |
 | `units` | No | `auto` | `auto`, `imperial`, or `metric`. |
 | `layout` | No | `auto` | `auto`, `wide_panel`, `stacked`, or `compact`. Use `stacked` for Home Assistant Sections cards that are narrow or short. |
-| `hourly_count` | No | `5` | Number of hourly forecast rows, 1-24. More rows can scroll inside compact cards. |
+| `hourly_count` | No | `5` | Number of hourly/forecast-list rows, 1-24. If hourly forecasts are unavailable, WeatherWise falls back to twice-daily or daily data. |
+| `forecast_count` | No | `5` | Number of daily/twice-daily forecast cards, 1-7. |
+| `show_timeline` | No | `true` | Show or hide the left hourly/forecast list. |
+| `show_forecast` | No | `true` | Show or hide the daily/twice-daily forecast card strip. |
 | `show_animations` | No | `true` | Show subtle weather icon, forecast, and hourly row animations. Respects reduced-motion settings. |
 | `show_radar` | No | `true` | Show or hide the radar panel. |
 | `show_map_controls` | No | `true` | Show or hide map zoom controls. |
