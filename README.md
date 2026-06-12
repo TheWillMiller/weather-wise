@@ -4,7 +4,7 @@
 [![Validate](https://img.shields.io/github/actions/workflow/status/TheWillMiller/weather-wise/validate.yml?branch=main&label=validate)](https://github.com/TheWillMiller/weather-wise/actions/workflows/validate.yml)
 [![GitHub stars](https://img.shields.io/github/stars/TheWillMiller/weather-wise?label=stars)](https://github.com/TheWillMiller/weather-wise/stargazers)
 
-**Latest beta:** `v0.2.0-beta.1`
+**Latest beta:** `v0.2.0-beta.2`
 
 WeatherWise is a Home Assistant dashboard (Lovelace) custom card for current weather, hourly and daily forecasts, sunrise and sunset, wind, humidity, and optional radar. It follows the TideWise/RiverWise visual language while staying a dashboard card, not a backend integration.
 
@@ -35,6 +35,7 @@ RainViewer is used only as a no-key global radar option. Its public API is for p
 - Legacy alias: `custom:weather-wise-card`
 - Home Assistant visual editor
 - Existing `weather` entity support
+- Optional humidity sensor fallback
 - Hourly forecast strip
 - Daily or twice-daily forecast cards
 - Fahrenheit and Celsius support
@@ -44,7 +45,8 @@ RainViewer is used only as a no-key global radar option. Its public API is for p
 - US NOAA radar support
 - RainViewer global radar support for Canada, UK, and other regions
 - Radar playback controls: pause, previous frame, and next frame
-- Radar style, basemap, and loop speed options
+- Radar timeline, style, basemap, and loop speed options
+- US NWS active warning overlay
 - Hidden YAML-only debug panel
 
 ## Installation
@@ -102,7 +104,7 @@ type: module
 For quick testing before installing locally, you can add this dashboard resource:
 
 ```yaml
-url: https://cdn.jsdelivr.net/gh/TheWillMiller/weather-wise@v0.2.0-beta.1/weatherwise-card.js
+url: https://cdn.jsdelivr.net/gh/TheWillMiller/weather-wise@v0.2.0-beta.2/weatherwise-card.js
 type: module
 ```
 
@@ -180,14 +182,16 @@ The visual editor includes a **Theme** dropdown for this setting.
 WeatherWise includes a Home Assistant visual editor. When adding the card from the dashboard editor, you can:
 
 - Choose a Home Assistant weather entity
+- Choose an optional humidity sensor when the weather entity does not expose humidity
 - Choose United States, Canada, United Kingdom, or global/other setup
 - Choose automatic radar, NOAA radar, RainViewer radar, or no radar
-- Choose radar style, map style, and radar loop speed
+- Choose radar timeline, style, map style, and radar loop speed
 - Set title, units, hourly row count, and theme mode
 - Set radar latitude/longitude and zoom
 - Show or hide the radar panel
 - Show or hide map controls
 - Show or hide radar playback controls
+- Show or hide the US NWS warning overlay
 
 ## Configuration
 
@@ -195,6 +199,7 @@ WeatherWise includes a Home Assistant visual editor. When adding the card from t
 | --- | --- | --- | --- |
 | `type` | Yes |  | Use `custom:weatherwise-card`. The legacy `custom:weather-wise-card` alias also works. |
 | `entity` | Yes |  | Home Assistant `weather` entity. |
+| `humidity_entity` | No |  | Optional humidity sensor/helper entity. Useful when the weather entity has no humidity attribute. |
 | `title` | No | `Local Weather` | Card title. |
 | `country` | No | `us` | Region hint: `us`, `ca`, `uk`, or `global`. |
 | `radar_provider` | No | `auto` | `auto`, `noaa`, `rainviewer`, or `none`. |
@@ -204,10 +209,12 @@ WeatherWise includes a Home Assistant visual editor. When adding the card from t
 | `show_radar` | No | `true` | Show or hide the radar panel. |
 | `show_map_controls` | No | `true` | Show or hide map zoom controls. |
 | `radar_controls` | No | `true` | Show or hide radar playback controls. |
+| `radar_timeline` | No | `loop` | `loop`, `latest`, or `future`. Future frames are used only when the selected radar provider exposes them. |
 | `radar_style` | No | `standard` | Radar overlay style: `standard`, `vivid`, or `soft`. |
 | `radar_basemap` | No | `light` | Map style: `light`, `dark`, or `osm`. |
 | `radar_speed` | No | `700` | Radar loop speed in milliseconds, 300-3000. |
 | `radar_zoom` | No | `7` | Initial radar zoom. |
+| `show_warning_overlay` | No | `true` | Show active US NWS alerts on the radar map when available. |
 | `latitude` | No | Home Assistant latitude | Radar center latitude. |
 | `longitude` | No | Home Assistant longitude | Radar center longitude. |
 | `debug` | No | disabled | Hidden troubleshooting object. Use `debug: { enabled: true, panel: true }` only when diagnosing data issues. |
@@ -247,6 +254,16 @@ Remove it after testing.
 2. Use `radar_provider: noaa` only for US radar.
 3. Use `radar_provider: rainviewer` for Canada, UK, and global setups.
 4. Confirm the dashboard browser can reach external map/radar tile services.
+
+### Humidity shows `--%`
+
+1. Check whether the selected weather entity exposes a humidity attribute.
+2. If it does not, choose a humidity sensor in the visual editor.
+3. Or set `humidity_entity: sensor.your_humidity_sensor` in YAML.
+
+## Address-Based Setup
+
+WeatherWise intentionally uses Home Assistant weather entities instead of direct address lookup. Address entry would require geocoding plus direct weather-provider calls from the browser, which adds privacy, API key, rate-limit, and regional-provider questions. A future WeatherWise integration could offer address-based setup more cleanly by creating the right entities in Home Assistant.
 
 ## Privacy
 

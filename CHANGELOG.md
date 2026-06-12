@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0-beta.2
+
+### Added
+
+- Added optional `humidity_entity` support for weather entities that do not expose humidity.
+- Added a visual editor humidity entity picker.
+- Added radar timeline modes: recent loop, current frame, and future if the provider exposes future frames.
+- Added US NWS active warning overlay support.
+- Added a visual editor toggle for the warning overlay.
+
+### Changed
+
+- NOAA future radar now falls back to the current radar frame because the NOAA radar image service used by WeatherWise is observed/current radar.
+
 ## 0.2.0-beta.1
 
 ### Added

@@ -3,7 +3,7 @@
  * Home Assistant weather dashboard card with forecasts and optional radar.
  */
 
-const CARD_VERSION = "0.2.0-beta.1";
+const CARD_VERSION = "0.2.0-beta.2";
 const CARD_TYPES = ["weatherwise-card", "weather-wise-card"];
 
 const WEATHERWISE_COUNTRIES = {
@@ -32,11 +32,18 @@ const WEATHERWISE_BASEMAPS = {
   osm: "Street map"
 };
 
+const WEATHERWISE_RADAR_TIMELINES = {
+  loop: "Recent loop",
+  latest: "Current frame",
+  future: "Future if available"
+};
+
 class WeatherWiseCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:weatherwise-card",
       entity: "weather.home",
+      humidity_entity: "",
       title: "Local Weather",
       country: "us",
       radar_provider: "auto",
@@ -47,6 +54,8 @@ class WeatherWiseCard extends HTMLElement {
       radar_controls: true,
       radar_style: "standard",
       radar_basemap: "light",
+      radar_timeline: "loop",
+      show_warning_overlay: true,
       latitude: 33.688,
       longitude: -78.886,
       grid_options: {
@@ -74,6 +83,7 @@ class WeatherWiseCard extends HTMLElement {
     this._radarReloadTimer = null;
     this._radarMap = null;
     this._radarLayers = [];
+    this._warningLayer = null;
     this._radarIndex = 0;
     this._radarPlaying = true;
     this._radarLabelText = "radar loop";
@@ -103,6 +113,8 @@ class WeatherWiseCard extends HTMLElement {
       previous.radar_provider !== this._config.radar_provider ||
       previous.radar_style !== this._config.radar_style ||
       previous.radar_basemap !== this._config.radar_basemap ||
+      previous.radar_timeline !== this._config.radar_timeline ||
+      previous.show_warning_overlay !== this._config.show_warning_overlay ||
       previous.latitude !== this._config.latitude ||
       previous.longitude !== this._config.longitude ||
       previous.show_radar !== this._config.show_radar
@@ -156,8 +168,10 @@ class WeatherWiseCard extends HTMLElement {
       : "auto";
     const radarStyle = String(config.radar_style || "standard").toLowerCase();
     const radarBasemap = String(config.radar_basemap || "light").toLowerCase();
+    const radarTimeline = String(config.radar_timeline || "loop").toLowerCase();
     return {
       title: "Local Weather",
+      humidity_entity: "",
       country: WEATHERWISE_COUNTRIES[country] ? country : "global",
       radar_provider: WEATHERWISE_RADAR[radarProvider] ? radarProvider : "auto",
       theme_mode: themeMode,
@@ -168,18 +182,22 @@ class WeatherWiseCard extends HTMLElement {
       radar_controls: true,
       radar_style: "standard",
       radar_basemap: "light",
+      radar_timeline: "loop",
+      show_warning_overlay: true,
       radar_zoom: 7,
       radar_speed: 700,
       debug: { enabled: false, panel: false },
       ...config,
       radar_style: WEATHERWISE_RADAR_STYLES[radarStyle] ? radarStyle : "standard",
       radar_basemap: WEATHERWISE_BASEMAPS[radarBasemap] ? radarBasemap : "light",
+      radar_timeline: WEATHERWISE_RADAR_TIMELINES[radarTimeline] ? radarTimeline : "loop",
       latitude: this._numberOr(config.latitude, undefined),
       longitude: this._numberOr(config.longitude, undefined),
       hourly_count: Math.max(1, Math.min(24, Number(config.hourly_count) || 5)),
       show_radar: config.show_radar !== false,
       show_map_controls: config.show_map_controls !== false,
       radar_controls: config.radar_controls !== false,
+      show_warning_overlay: config.show_warning_overlay !== false,
       radar_speed: Math.max(300, Math.min(3000, Number(config.radar_speed) || 700))
     };
   }
@@ -189,10 +207,12 @@ class WeatherWiseCard extends HTMLElement {
     const attrs = stateObj?.attributes || {};
     return JSON.stringify({
       entity: this._config.entity,
+      humidityEntity: this._config.humidity_entity,
       state: stateObj?.state,
       updated: stateObj?.last_updated,
       temp: attrs.temperature,
       humidity: attrs.humidity,
+      humidityState: this._config.humidity_entity ? this._hass?.states?.[this._config.humidity_entity]?.state : undefined,
       wind: attrs.wind_speed,
       bearing: attrs.wind_bearing,
       forecast: [
@@ -206,10 +226,12 @@ class WeatherWiseCard extends HTMLElement {
         this._config.radar_provider,
         this._config.radar_style,
         this._config.radar_basemap,
+        this._config.radar_timeline,
         this._config.theme_mode,
         this._config.units,
         this._config.show_radar,
         this._config.radar_controls,
+        this._config.show_warning_overlay,
         this._config.hourly_count
       ]
     });
@@ -255,7 +277,7 @@ class WeatherWiseCard extends HTMLElement {
     const title = this._config.title || attrs.friendly_name || "Local Weather";
     const units = this._unitContext(attrs);
     const temp = this._displayTemp(attrs.temperature, units);
-    const humidity = this._formatNumber(attrs.humidity);
+    const humidity = this._humidity(attrs);
     const wind = this._formatWind(attrs, units);
     const hourly = this._forecasts.hourly || [];
     const daily = this._forecasts.daily || [];
@@ -462,9 +484,13 @@ class WeatherWiseCard extends HTMLElement {
     window.setTimeout(() => this._radarMap?.invalidateSize(), 250);
     window.setTimeout(() => this._radarMap?.invalidateSize(), 1000);
     await this._loadRadarLoop(provider);
+    await this._loadWarningOverlay();
     this._radarMap.on("moveend zoomend", () => {
       window.clearTimeout(this._radarReloadTimer);
-      this._radarReloadTimer = window.setTimeout(() => this._loadRadarLoop(provider), 500);
+      this._radarReloadTimer = window.setTimeout(async () => {
+        await this._loadRadarLoop(provider);
+        await this._loadWarningOverlay();
+      }, 500);
     });
   }
 
@@ -472,7 +498,9 @@ class WeatherWiseCard extends HTMLElement {
     window.clearInterval(this._radarTimer);
     window.clearTimeout(this._radarReloadTimer);
     this._radarLayers.forEach((item) => item.layer?.remove?.());
+    this._warningLayer?.remove?.();
     this._radarLayers = [];
+    this._warningLayer = null;
     this._radarIndex = 0;
     if (this._radarMap) {
       this._radarMap.remove();
@@ -523,10 +551,10 @@ class WeatherWiseCard extends HTMLElement {
     try {
       const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
       const data = await response.json();
-      const frames = data?.radar?.past || [];
+      const frames = this._rainViewerFrames(data);
       const host = data?.host || "https://tilecache.rainviewer.com";
       if (!frames.length) throw new Error("No RainViewer frames");
-      this._radarLabelText = "RainViewer radar";
+      this._radarLabelText = this._config.radar_timeline === "future" ? "RainViewer future radar" : "RainViewer radar";
       this._replaceRadarLayers(frames.slice(-12).map((frame, index, list) => ({
         time: new Date(frame.time * 1000),
         layer: window.L.tileLayer(`${host}${frame.path}/256/{z}/{x}/{y}/${this._rainViewerColor()}/1_1.png`, {
@@ -535,8 +563,8 @@ class WeatherWiseCard extends HTMLElement {
           attribution: "Radar &copy; RainViewer"
         })
       })));
-      if (label) label.textContent = `${this._shortTime(this._radarLayers[this._radarLayers.length - 1].time)} RainViewer radar`;
-      this._animateRadar("RainViewer radar");
+      if (label) label.textContent = `${this._shortTime(this._radarLayers[this._radarLayers.length - 1].time)} ${this._radarLabelText}`;
+      this._animateRadar(this._radarLabelText);
     } catch (err) {
       if (label) label.textContent = "RainViewer radar unavailable";
     }
@@ -544,18 +572,19 @@ class WeatherWiseCard extends HTMLElement {
 
   async _loadNoaaLoop() {
     const frames = this._noaaFrames();
-    this._radarLabelText = "NOAA radar loop";
-    this._replaceRadarLayers(frames.map((frameTime, index) => ({
+    const selectedFrames = this._config.radar_timeline === "latest" || this._config.radar_timeline === "future" ? frames.slice(-1) : frames;
+    this._radarLabelText = selectedFrames.length === 1 ? "NOAA current radar" : "NOAA radar loop";
+    this._replaceRadarLayers(selectedFrames.map((frameTime, index) => ({
       time: frameTime,
       layer: window.L.imageOverlay(this._noaaUrl(frameTime), this._radarMap.getBounds(), {
-        opacity: index === frames.length - 1 ? this._radarOpacity() : 0,
+        opacity: index === selectedFrames.length - 1 ? this._radarOpacity() : 0,
         zIndex: 20,
         interactive: false
       })
     })));
     const label = this.shadowRoot?.getElementById("radar-lbl");
-    if (label) label.textContent = `${this._shortTime(frames.at(-1))} NOAA radar loop`;
-    this._animateRadar("NOAA radar loop");
+    if (label) label.textContent = `${this._shortTime(selectedFrames.at(-1))} ${this._radarLabelText}`;
+    this._animateRadar(this._radarLabelText);
   }
 
   _replaceRadarLayers(layers) {
@@ -569,6 +598,11 @@ class WeatherWiseCard extends HTMLElement {
 
   _animateRadar(labelText) {
     this._radarLabelText = labelText;
+    if (this._radarLayers.length <= 1) {
+      this._radarPlaying = false;
+      this._updateRadarPlayButton();
+      return;
+    }
     this._radarTimer = window.setInterval(() => {
       if (!this._radarPlaying) return;
       this._stepRadar(1, false);
@@ -613,6 +647,15 @@ class WeatherWiseCard extends HTMLElement {
     return Array.from({ length: 12 }, (_, i) => new Date(roundedNow - (11 - i) * stepMs));
   }
 
+  _rainViewerFrames(data) {
+    if (this._config.radar_timeline === "latest") return (data?.radar?.past || []).slice(-1);
+    if (this._config.radar_timeline === "future") {
+      const future = data?.radar?.nowcast || data?.radar?.forecast || [];
+      return future.length ? future : (data?.radar?.past || []).slice(-1);
+    }
+    return data?.radar?.past || [];
+  }
+
   _noaaUrl(frameTime) {
     const bounds = this._radarMap.getBounds();
     const size = this._radarMap.getSize();
@@ -648,6 +691,60 @@ class WeatherWiseCard extends HTMLElement {
       }
     };
     return basemaps[this._config.radar_basemap] || basemaps.light;
+  }
+
+  async _loadWarningOverlay() {
+    if (!this._radarMap || !window.L || this._config.show_warning_overlay === false || this._config.country !== "us") return;
+    this._warningLayer?.remove?.();
+    this._warningLayer = null;
+    const label = this.shadowRoot?.getElementById("radar-lbl");
+    const { lat, lon } = this._latLon();
+    try {
+      const response = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}`);
+      if (!response.ok) throw new Error("NWS alerts unavailable");
+      const data = await response.json();
+      const features = Array.isArray(data?.features) ? data.features : [];
+      if (!features.length) return;
+      const group = window.L.layerGroup();
+      const featuresWithGeometry = features.filter((feature) => feature.geometry);
+      if (featuresWithGeometry.length) {
+        window.L.geoJSON({ type: "FeatureCollection", features: featuresWithGeometry }, {
+          style: (feature) => this._warningStyle(feature?.properties?.severity),
+          interactive: true,
+          onEachFeature: (feature, layer) => layer.bindPopup?.(this._alertPopup(feature.properties || {}))
+        }).addTo(group);
+      }
+      const headline = features[0]?.properties?.headline || `${features.length} active weather alert${features.length === 1 ? "" : "s"}`;
+      window.L.circleMarker([lat, lon], {
+        radius: 9,
+        color: "#b91c1c",
+        fillColor: "#ef4444",
+        fillOpacity: 0.85,
+        weight: 2
+      }).bindPopup(this._escape(headline)).addTo(group);
+      this._warningLayer = group.addTo(this._radarMap);
+      if (label) label.textContent = `${label.textContent} + ${features.length} alert${features.length === 1 ? "" : "s"}`;
+    } catch (err) {
+      if (label && this._config.debug?.enabled) label.textContent = `${label.textContent} + alerts unavailable`;
+    }
+  }
+
+  _warningStyle(severity) {
+    const colors = {
+      Extreme: "#7f1d1d",
+      Severe: "#dc2626",
+      Moderate: "#f97316",
+      Minor: "#facc15"
+    };
+    const color = colors[severity] || "#dc2626";
+    return { color, fillColor: color, fillOpacity: 0.16, opacity: 0.82, weight: 2 };
+  }
+
+  _alertPopup(props) {
+    const event = this._escape(props.event || "Weather alert");
+    const headline = this._escape(props.headline || "");
+    const severity = this._escape(props.severity || "Unknown");
+    return `<strong>${event}</strong><br>${headline}<br>Severity: ${severity}`;
   }
 
   _unitContext(attrs) {
@@ -693,6 +790,18 @@ class WeatherWiseCard extends HTMLElement {
     const bearing = Number(attrs.wind_bearing);
     const dir = Number.isFinite(bearing) ? ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(bearing / 45) % 8] : "";
     return `${dir ? `${dir} ` : ""}${speed} ${attrs.wind_speed_unit || units.windSpeedUnit}`;
+  }
+
+  _humidity(attrs) {
+    const configured = this._config.humidity_entity ? this._hass?.states?.[this._config.humidity_entity] : null;
+    const values = [
+      configured?.state,
+      attrs.humidity,
+      attrs.relative_humidity,
+      attrs.relativeHumidity
+    ];
+    const value = values.map((item) => this._numberOr(item, NaN)).find(Number.isFinite);
+    return Number.isFinite(value) ? String(Math.round(value)) : "--";
   }
 
   _latLon() {
@@ -888,9 +997,20 @@ class WeatherWiseCardEditor extends HTMLElement {
       .sort(([a], [b]) => a.localeCompare(b));
   }
 
+  _sensorEntities() {
+    return Object.entries(this._hass?.states || {})
+      .filter(([entityId]) => entityId.startsWith("sensor.") || entityId.startsWith("input_number."))
+      .filter(([entityId, state]) => {
+        const friendly = String(state.attributes?.friendly_name || "").toLowerCase();
+        const unit = String(state.attributes?.unit_of_measurement || "").toLowerCase();
+        return entityId.toLowerCase().includes("humidity") || friendly.includes("humidity") || unit === "%";
+      })
+      .sort(([a], [b]) => a.localeCompare(b));
+  }
+
   _setValue(key, value) {
     const numberKeys = ["latitude", "longitude", "hourly_count", "radar_zoom", "radar_speed"];
-    const booleanKeys = ["show_radar", "show_map_controls", "radar_controls"];
+    const booleanKeys = ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay"];
     let nextValue = value;
     if (numberKeys.includes(key)) nextValue = value === "" ? undefined : Number(value);
     if (booleanKeys.includes(key)) nextValue = Boolean(value);
@@ -907,13 +1027,22 @@ class WeatherWiseCardEditor extends HTMLElement {
     if (!this.shadowRoot) return;
     const config = this._config || {};
     const entities = this._weatherEntities();
+    const sensors = this._sensorEntities();
     const hasConfiguredEntity = entities.some(([entityId]) => entityId === config.entity);
+    const hasConfiguredHumidityEntity = sensors.some(([entityId]) => entityId === config.humidity_entity);
     const configuredOption = config.entity && !hasConfiguredEntity
       ? `<option value="${config.entity}" selected>${config.entity}</option>`
+      : "";
+    const configuredHumidityOption = config.humidity_entity && !hasConfiguredHumidityEntity
+      ? `<option value="${config.humidity_entity}" selected>${config.humidity_entity}</option>`
       : "";
     const weatherOptions = entities.map(([entityId, state]) => {
       const name = state.attributes?.friendly_name || entityId;
       return `<option value="${entityId}" ${config.entity === entityId ? "selected" : ""}>${name} (${entityId})</option>`;
+    }).join("");
+    const humidityOptions = sensors.map(([entityId, state]) => {
+      const name = state.attributes?.friendly_name || entityId;
+      return `<option value="${entityId}" ${config.humidity_entity === entityId ? "selected" : ""}>${name} (${entityId})</option>`;
     }).join("");
     this.shadowRoot.innerHTML = `
       <style>
@@ -939,7 +1068,14 @@ class WeatherWiseCardEditor extends HTMLElement {
               ${weatherOptions}
             </select>
           </label>
-          <div class="hint">WeatherWise reads an existing Home Assistant weather entity and calls Home Assistant's forecast service. This keeps API keys out of dashboard YAML.</div>
+          <label>Humidity entity
+            <select id="humidity_entity">
+              <option value="">Auto from weather entity</option>
+              ${configuredHumidityOption}
+              ${humidityOptions}
+            </select>
+          </label>
+          <div class="hint">WeatherWise reads an existing Home Assistant weather entity and calls Home Assistant's forecast service. Use a humidity sensor here when your weather entity does not expose humidity.</div>
         </div>
         <div class="section">
           <div class="section-title">Region and radar</div>
@@ -964,8 +1100,13 @@ class WeatherWiseCardEditor extends HTMLElement {
                 ${Object.entries(WEATHERWISE_BASEMAPS).map(([value, label]) => `<option value="${value}" ${config.radar_basemap === value ? "selected" : ""}>${label}</option>`).join("")}
               </select>
             </label>
+            <label>Radar timeline
+              <select id="radar_timeline">
+                ${Object.entries(WEATHERWISE_RADAR_TIMELINES).map(([value, label]) => `<option value="${value}" ${config.radar_timeline === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </label>
           </div>
-          <div class="hint">Auto uses NOAA radar for the United States and RainViewer global radar for Canada, the UK, and other regions. Radar style changes overlay contrast/opacity. Map style changes the base map under the radar.</div>
+          <div class="hint">Auto uses NOAA radar for the United States and RainViewer global radar for Canada, the UK, and other regions. Future radar is used only when the selected provider exposes future frames.</div>
         </div>
         <div class="section">
           <div class="section-title">Display</div>
@@ -998,14 +1139,15 @@ class WeatherWiseCardEditor extends HTMLElement {
           <label class="check"><input id="show_radar" type="checkbox" ${config.show_radar === false ? "" : "checked"}> Show radar panel</label>
           <label class="check"><input id="show_map_controls" type="checkbox" ${config.show_map_controls === false ? "" : "checked"}> Show map controls</label>
           <label class="check"><input id="radar_controls" type="checkbox" ${config.radar_controls === false ? "" : "checked"}> Show radar playback controls</label>
+          <label class="check"><input id="show_warning_overlay" type="checkbox" ${config.show_warning_overlay === false ? "" : "checked"}> Show US warning overlay</label>
           <div class="hint">Latitude and longitude control only the radar center. They do not change the selected weather entity.</div>
         </div>
       </div>
     `;
-    ["entity", "country", "radar_provider", "radar_style", "radar_basemap", "title", "units", "theme_mode", "latitude", "longitude", "hourly_count", "radar_zoom", "radar_speed"].forEach((id) => {
+    ["entity", "humidity_entity", "country", "radar_provider", "radar_style", "radar_basemap", "radar_timeline", "title", "units", "theme_mode", "latitude", "longitude", "hourly_count", "radar_zoom", "radar_speed"].forEach((id) => {
       this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setValue(id, event.target.value));
     });
-    ["show_radar", "show_map_controls", "radar_controls"].forEach((id) => {
+    ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay"].forEach((id) => {
       this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setValue(id, event.target.checked));
     });
   }
