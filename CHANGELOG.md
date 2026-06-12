@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0-beta.3
+
+### Fixed
+
+- Added explicit 15-minute forecast refresh so hourly and daily forecast data updates even if the Home Assistant state object does not change often.
+- Recreated and cleaned up card timers correctly across dashboard add/remove cycles.
+- Added repository checkout to the HACS validation workflow.
+- Added GeoJSON accept headers for NWS alert requests while keeping the card frontend-only.
+- Escaped Home Assistant entity names and editor values before rendering visual editor HTML.
+
+### Changed
+
+- Documented the dashed `custom:weather-wise-card` registration as an intentional YAML-only legacy alias.
+
 ## 0.2.0-beta.2
 
 ### Added

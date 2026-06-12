@@ -13,6 +13,9 @@ jobs:
   validate-hacs:
     runs-on: "ubuntu-latest"
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: HACS validation
         uses: "hacs/action@main"
         with:

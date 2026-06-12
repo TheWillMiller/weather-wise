@@ -3,7 +3,8 @@
  * Home Assistant weather dashboard card with forecasts and optional radar.
  */
 
-const CARD_VERSION = "0.2.0-beta.2";
+const CARD_VERSION = "0.2.0-beta.3";
+const FORECAST_REFRESH_MS = 15 * 60 * 1000;
 const CARD_TYPES = ["weatherwise-card", "weather-wise-card"];
 
 const WEATHERWISE_COUNTRIES = {
@@ -79,6 +80,7 @@ class WeatherWiseCard extends HTMLElement {
     this._lastForecastLoad = 0;
     this._lastRenderKey = "";
     this._clockTimer = window.setInterval(() => this._updateClock(), 1000);
+    this._forecastRefreshTimer = null;
     this._radarTimer = null;
     this._radarReloadTimer = null;
     this._radarMap = null;
@@ -91,11 +93,16 @@ class WeatherWiseCard extends HTMLElement {
   }
 
   connectedCallback() {
+    if (!this._clockTimer) this._clockTimer = window.setInterval(() => this._updateClock(), 1000);
     this._updateClock();
+    this._ensureForecastRefreshTimer();
   }
 
   disconnectedCallback() {
     window.clearInterval(this._clockTimer);
+    this._clockTimer = null;
+    window.clearInterval(this._forecastRefreshTimer);
+    this._forecastRefreshTimer = null;
     this._teardownRadar();
   }
 
@@ -135,6 +142,7 @@ class WeatherWiseCard extends HTMLElement {
       this._lastForecastLoad = 0;
       this._lastRenderKey = "";
     }
+    this._ensureForecastRefreshTimer();
     if (entityId && now - this._lastForecastLoad > 5 * 60 * 1000) {
       this._lastForecastLoad = now;
       this._loadForecasts(entityId);
@@ -144,6 +152,17 @@ class WeatherWiseCard extends HTMLElement {
       this._lastRenderKey = key;
       this._render();
     }
+  }
+
+  _ensureForecastRefreshTimer() {
+    if (this._forecastRefreshTimer || !this.isConnected || !this._config.entity) return;
+    this._forecastRefreshTimer = window.setInterval(() => this._refreshForecasts(), FORECAST_REFRESH_MS);
+  }
+
+  _refreshForecasts() {
+    if (!this._hass || !this._config.entity) return;
+    this._lastForecastLoad = Date.now();
+    this._loadForecasts(this._config.entity);
   }
 
   getCardSize() {
@@ -312,7 +331,7 @@ class WeatherWiseCard extends HTMLElement {
                 <div class="current-icon">${this._icon(condition, 62)}</div>
                 <div class="cond-block">
                   <div class="current-label">Current Weather</div>
-                  <div class="cond-name">${unavailable ? "Connect weather in Home Assistant" : this._titleCase(condition)}</div>
+                  <div class="cond-name">${unavailable ? "Connect weather in Home Assistant" : this._escape(this._titleCase(condition))}</div>
                   <div class="updated-note">${unavailable ? "Waiting for live weather data" : `Updated ${this._shortTime(now)}`}</div>
                 </div>
                 <div class="temp-block">
@@ -700,7 +719,9 @@ class WeatherWiseCard extends HTMLElement {
     const label = this.shadowRoot?.getElementById("radar-lbl");
     const { lat, lon } = this._latLon();
     try {
-      const response = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}`);
+      const response = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}`, {
+        headers: { Accept: "application/geo+json" }
+      });
       if (!response.ok) throw new Error("NWS alerts unavailable");
       const data = await response.json();
       const features = Array.isArray(data?.features) ? data.features : [];
@@ -1031,18 +1052,18 @@ class WeatherWiseCardEditor extends HTMLElement {
     const hasConfiguredEntity = entities.some(([entityId]) => entityId === config.entity);
     const hasConfiguredHumidityEntity = sensors.some(([entityId]) => entityId === config.humidity_entity);
     const configuredOption = config.entity && !hasConfiguredEntity
-      ? `<option value="${config.entity}" selected>${config.entity}</option>`
+      ? `<option value="${this._escape(config.entity)}" selected>${this._escape(config.entity)}</option>`
       : "";
     const configuredHumidityOption = config.humidity_entity && !hasConfiguredHumidityEntity
-      ? `<option value="${config.humidity_entity}" selected>${config.humidity_entity}</option>`
+      ? `<option value="${this._escape(config.humidity_entity)}" selected>${this._escape(config.humidity_entity)}</option>`
       : "";
     const weatherOptions = entities.map(([entityId, state]) => {
       const name = state.attributes?.friendly_name || entityId;
-      return `<option value="${entityId}" ${config.entity === entityId ? "selected" : ""}>${name} (${entityId})</option>`;
+      return `<option value="${this._escape(entityId)}" ${config.entity === entityId ? "selected" : ""}>${this._escape(name)} (${this._escape(entityId)})</option>`;
     }).join("");
     const humidityOptions = sensors.map(([entityId, state]) => {
       const name = state.attributes?.friendly_name || entityId;
-      return `<option value="${entityId}" ${config.humidity_entity === entityId ? "selected" : ""}>${name} (${entityId})</option>`;
+      return `<option value="${this._escape(entityId)}" ${config.humidity_entity === entityId ? "selected" : ""}>${this._escape(name)} (${this._escape(entityId)})</option>`;
     }).join("");
     this.shadowRoot.innerHTML = `
       <style>
@@ -1111,7 +1132,7 @@ class WeatherWiseCardEditor extends HTMLElement {
         <div class="section">
           <div class="section-title">Display</div>
           <div class="grid">
-            <label>Title <input id="title" value="${config.title || ""}" placeholder="Local Weather"></label>
+            <label>Title <input id="title" value="${this._escape(config.title || "")}" placeholder="Local Weather"></label>
             <label>Units
               <select id="units">
                 <option value="auto" ${config.units !== "imperial" && config.units !== "metric" ? "selected" : ""}>Auto from weather entity</option>
@@ -1125,16 +1146,16 @@ class WeatherWiseCardEditor extends HTMLElement {
                 <option value="auto" ${config.theme_mode === "auto" ? "selected" : ""}>Home Assistant theme</option>
               </select>
             </label>
-            <label>Hourly rows <input id="hourly_count" type="number" min="1" max="24" value="${config.hourly_count || 5}"></label>
+            <label>Hourly rows <input id="hourly_count" type="number" min="1" max="24" value="${this._escape(config.hourly_count || 5)}"></label>
           </div>
         </div>
         <div class="section">
           <div class="section-title">Radar location</div>
           <div class="grid">
-            <label>Latitude <input id="latitude" type="number" step="0.0001" value="${config.latitude ?? ""}"></label>
-            <label>Longitude <input id="longitude" type="number" step="0.0001" value="${config.longitude ?? ""}"></label>
-            <label>Radar zoom <input id="radar_zoom" type="number" min="3" max="12" value="${config.radar_zoom || 7}"></label>
-            <label>Loop speed <input id="radar_speed" type="number" min="300" max="3000" step="100" value="${config.radar_speed || 700}"></label>
+            <label>Latitude <input id="latitude" type="number" step="0.0001" value="${this._escape(config.latitude ?? "")}"></label>
+            <label>Longitude <input id="longitude" type="number" step="0.0001" value="${this._escape(config.longitude ?? "")}"></label>
+            <label>Radar zoom <input id="radar_zoom" type="number" min="3" max="12" value="${this._escape(config.radar_zoom || 7)}"></label>
+            <label>Loop speed <input id="radar_speed" type="number" min="300" max="3000" step="100" value="${this._escape(config.radar_speed || 700)}"></label>
           </div>
           <label class="check"><input id="show_radar" type="checkbox" ${config.show_radar === false ? "" : "checked"}> Show radar panel</label>
           <label class="check"><input id="show_map_controls" type="checkbox" ${config.show_map_controls === false ? "" : "checked"}> Show map controls</label>
@@ -1151,12 +1172,23 @@ class WeatherWiseCardEditor extends HTMLElement {
       this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setValue(id, event.target.checked));
     });
   }
+
+  _escape(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
 }
 
 class WeatherWiseDashedCard extends WeatherWiseCard {}
 class WeatherWiseDashedCardEditor extends WeatherWiseCardEditor {}
 
 if (!customElements.get(CARD_TYPES[0])) customElements.define(CARD_TYPES[0], WeatherWiseCard);
+// Keep the dashed element names as YAML-only legacy aliases for early WeatherWise beta users.
 if (!customElements.get(CARD_TYPES[1])) customElements.define(CARD_TYPES[1], WeatherWiseDashedCard);
 if (!customElements.get("weatherwise-card-editor")) customElements.define("weatherwise-card-editor", WeatherWiseCardEditor);
 if (!customElements.get("weather-wise-card-editor")) customElements.define("weather-wise-card-editor", WeatherWiseDashedCardEditor);
