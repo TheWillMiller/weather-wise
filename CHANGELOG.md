@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.3
+
+### Added
+
+- Added an optional current temperature entity override for users whose local sensor is more accurate than the selected weather provider.
+- Added precipitation probability and amount display to forecast-list rows and daily/twice-daily forecast cards when the provider exposes those fields.
+- Documented that the blue forecast-list bars show relative temperature across the visible rows.
+
+### Fixed
+
+- Filtered the new temperature selector to temperature-like entities instead of unrelated sensors.
+- Improved stat tile wrapping so humidity, wind, sunrise, and sunset text stays inside its background box on narrow portrait tablets.
+
 ## 0.3.2
 
 ### Added

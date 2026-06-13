@@ -5,9 +5,9 @@
 [![GitHub stars](https://img.shields.io/github/stars/TheWillMiller/weather-wise?label=stars)](https://github.com/TheWillMiller/weather-wise/stargazers)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?logo=buymeacoffee)](https://buymeacoffee.com/thewillmiller)
 
-**Latest release:** `v0.3.2`
+**Latest release:** `v0.3.3`
 
-WeatherWise is a Home Assistant dashboard (Lovelace) custom card for current weather, hourly and daily forecasts, sunrise and sunset, wind, humidity, and optional radar. It follows the TideWise/RiverWise visual language while staying a dashboard card, not a backend integration.
+WeatherWise is a Home Assistant dashboard (Lovelace) custom card for current weather, hourly and daily forecasts, precipitation details, sunrise and sunset, wind, humidity, and optional radar. It follows the TideWise/RiverWise visual language while staying a dashboard card, not a backend integration.
 
 ![WeatherWise dashboard preview](https://raw.githubusercontent.com/TheWillMiller/weather-wise/main/docs/preview.png)
 
@@ -48,9 +48,11 @@ If you are testing from Australia, New Zealand, Europe, or any other region, ple
 - Legacy alias: `custom:weather-wise-card`
 - Home Assistant visual editor
 - Existing `weather` entity support
+- Optional local temperature sensor override
 - Optional humidity sensor fallback
 - Hourly forecast strip
 - Daily or twice-daily forecast cards
+- Precipitation probability and amount when exposed by the weather provider
 - Fahrenheit and Celsius support
 - WeatherWise built-in theme mode
 - Home Assistant theme-aware mode with `theme_mode: auto`
@@ -117,7 +119,7 @@ type: module
 For quick testing before installing locally, you can add this dashboard resource:
 
 ```yaml
-url: https://cdn.jsdelivr.net/gh/TheWillMiller/weather-wise@v0.3.2/weatherwise-card.js
+url: https://cdn.jsdelivr.net/gh/TheWillMiller/weather-wise@v0.3.3/weatherwise-card.js
 type: module
 ```
 
@@ -195,6 +197,7 @@ The visual editor includes a **Theme** dropdown for this setting.
 WeatherWise includes a Home Assistant visual editor. When adding the card from the dashboard editor, you can:
 
 - Choose a Home Assistant weather entity
+- Choose an optional local temperature sensor when the weather entity is not local enough
 - Choose an optional humidity sensor when the weather entity does not expose humidity
 - Choose United States, Canada, United Kingdom, or global/other setup
 - Choose automatic radar, NOAA radar, RainViewer radar, or no radar
@@ -214,6 +217,7 @@ WeatherWise includes a Home Assistant visual editor. When adding the card from t
 | --- | --- | --- | --- |
 | `type` | Yes |  | Use `custom:weatherwise-card`. The legacy `custom:weather-wise-card` alias also works. |
 | `entity` | Yes |  | Home Assistant `weather` entity. |
+| `temperature_entity` | No |  | Optional temperature sensor/helper entity for the current displayed temperature. Useful when an indoor, patio, or hyperlocal sensor differs from the weather provider. |
 | `humidity_entity` | No |  | Optional humidity sensor/helper entity. Useful when the weather entity has no humidity attribute. |
 | `title` | No | `Local Weather` | Card title. |
 | `country` | No | `us` | Region hint: `us`, `ca`, `uk`, or `global`. |
@@ -282,7 +286,7 @@ Available for custom Home Assistant dashboards, Lovelace cards, and kiosk interf
 
 1. Check the selected radar provider.
 2. Use `radar_provider: noaa` only for US radar.
-3. Use `radar_provider: rainviewer` for Canada, UK, and global setups.
+3. Use `radar_provider: envcanada` for Canada, or `radar_provider: rainviewer` for UK and global setups.
 4. Confirm the dashboard browser can reach external map/radar tile services.
 
 ### Humidity shows `--%`
@@ -290,6 +294,10 @@ Available for custom Home Assistant dashboards, Lovelace cards, and kiosk interf
 1. Check whether the selected weather entity exposes a humidity attribute.
 2. If it does not, choose a humidity sensor in the visual editor.
 3. Or set `humidity_entity: sensor.your_humidity_sensor` in YAML.
+
+### What do the blue bars show?
+
+The blue bars in the forecast list show relative temperature across the visible rows. Longer bars are warmer compared with the other rows currently shown. If your weather provider exposes precipitation probability or amount, WeatherWise also shows that beside the bar.
 
 ## Address-Based Setup
 
