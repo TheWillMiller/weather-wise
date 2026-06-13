@@ -776,8 +776,15 @@ class WeatherWiseCard extends HTMLElement {
       <style>${this._styles()}</style>
       <ha-card>
         <div class="card-outer">
-          <div class="card-grid layout-${_wwEscape(layout)} ${this._config.show_radar && provider !== "none" ? "" : "no-radar"} ${this._config.show_timeline === false ? "no-timeline" : ""} ${this._config.show_forecast === false ? "no-forecast" : ""}" style="${(() => { const w = this._config.column_widths || [1,2,1]; return `--ww-col1:${w[0]}fr;--ww-col2:${w[1]}fr;--ww-col3:${w[2]}fr;`; })()}--ww-hourly-count:${Math.max(1, Math.min(24, Number(this._config.hourly_count) || 5))};--ww-forecast-count:${Math.max(1, Math.min(7, Number(this._config.forecast_count) || 5))}">
-            <section class="left" style="order:${this._sectionOrder("clock")}">
+          <div class="card-grid layout-${_wwEscape(layout)} ${this._config.show_radar && provider !== "none" ? "" : "no-radar"} ${this._config.show_timeline === false ? "no-timeline" : ""} ${this._config.show_forecast === false ? "no-forecast" : ""}" style="${(() => {
+  const w = this._config.column_widths || [25,50,25];
+  const cl = this._sectionOrder('clock');
+  const wl = this._sectionOrder('weather');
+  const rl = this._sectionOrder('radar');
+  const cb = cl * 10, wb = wl * 10, rb = rl * 10;
+  return `--ww-col1:${w[0]}fr;--ww-col2:${w[1]}fr;--ww-col3:${w[2]}fr;--ww-left-order:${cl};--ww-center-order:${wl};--ww-right-order:${rl};--ww-ord-clock-title:${cb+1};--ww-ord-clock-hourly:${cb+2};--ww-ord-weather:${wb+1};--ww-ord-radar:${rb+1};`;
+})()}--ww-hourly-count:${Math.max(1, Math.min(24, Number(this._config.hourly_count) || 5))};--ww-forecast-count:${Math.max(1, Math.min(7, Number(this._config.forecast_count) || 5))}">
+            <section class="left">
               <div class="clock-panel">
                 <div class="clock-row">
                   <div class="clock-time" id="clock-time">${this._clockTime(now)}</div>
@@ -791,7 +798,7 @@ class WeatherWiseCard extends HTMLElement {
                 <div class="hourly-left">${this._renderTimeline(timeline, units, timelineMode)}</div>
               `}
             </section>
-            <section class="center" style="order:${this._sectionOrder("weather")}">
+            <section class="center">
               <div class="current-row">
                 <div class="current-icon">${this._icon(displayCondition, 62)}</div>
                 <div class="cond-block">
@@ -814,7 +821,7 @@ class WeatherWiseCard extends HTMLElement {
               ${this._renderDebug({ stateObj, hourly, daily, twiceDaily, provider, units })}
             </section>
             ${this._config.show_radar && provider !== "none" ? `
-              <section class="right" style="order:${this._sectionOrder("radar")}">
+              <section class="right">
                 <div id="rmap"></div>
                 ${this._config.radar_controls === false ? "" : `
                   <div class="radar-controls" aria-label="Radar playback controls">
@@ -1770,7 +1777,8 @@ class WeatherWiseCard extends HTMLElement {
       .card-outer::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ww-wave) 62%,transparent),transparent)}
       .card-grid{display:grid;grid-template-columns:minmax(0,var(--ww-col1,1fr)) minmax(0,var(--ww-col2,2fr)) minmax(0,var(--ww-col3,1fr));height:var(--weatherwise-card-height,clamp(450px,24cqw,540px));min-height:0;max-height:var(--weatherwise-card-max-height,580px)}
       .card-grid.no-radar{grid-template-columns:minmax(260px,34%) minmax(0,1fr)}
-      .left{min-width:0;display:flex;flex-direction:column;padding:18px 22px 10px;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08));border-right:1px solid rgba(255,255,255,0.22);overflow:hidden}
+      .left{min-width:0;display:flex;flex-direction:column;padding:18px 22px 10px;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08));border-right:1px solid rgba(255,255,255,0.22);overflow:hidden;order:var(--ww-left-order,1)}
+      .center{order:var(--ww-center-order,2)}.right{order:var(--ww-right-order,3)}
       .clock-panel{flex-shrink:0}
       .clock-row{display:flex;align-items:baseline;gap:8px;line-height:1}
       .clock-time{font-size:78px;font-weight:550;color:var(--ww-text);letter-spacing:0}
@@ -1892,9 +1900,9 @@ class WeatherWiseCard extends HTMLElement {
       @container(max-width:1500px){.card-grid{height:var(--weatherwise-card-height,clamp(440px,25cqw,520px))}.left{padding:14px 18px 10px}.center{padding:16px 20px}.clock-time{font-size:70px}.clock-date{font-size:18px;margin-bottom:11px}.forecast-summary{margin-bottom:11px}.forecast-summary-text{font-size:12px}.section-title,.current-label{font-size:15px}.temp-now{font-size:58px}.temp-hilo{font-size:18px}.cond-name{font-size:32px}.updated-note{font-size:13px}.daily-strip{min-height:172px;max-height:212px}.fc-day{font-size:20px}.fc-period{font-size:13px}.fc-icon{width:58px;height:58px}.fc-icon svg{width:54px;height:54px}.fc-temp{font-size:43px}.hour-row{grid-template-columns:50px 24px 42px minmax(52px,1fr) minmax(38px,max-content);gap:7px;min-height:32px}.hour-time-left{font-size:14px}.hour-temp-left{font-size:15px}.hour-precip{font-size:11px}.stat{padding:9px 11px;gap:9px;min-height:62px}.stat-lbl{font-size:11px}.stat-val{font-size:17px}}
       @container(max-width:980px){.card-grid:not(.layout-wide_panel){height:var(--weatherwise-card-height,clamp(560px,58cqw,680px))}.card-grid:not(.layout-wide_panel) .center{border-right:0}.card-grid:not(.layout-wide_panel) .right{grid-column:1 / -1;height:240px;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid:not(.layout-wide_panel) #rmap{height:240px}.card-grid:not(.layout-wide_panel) .daily-strip{min-height:150px;max-height:none}}
       .card-grid.layout-wide_panel{height:var(--weatherwise-card-height,clamp(390px,22cqw,500px))}
-      .card-grid.layout-stacked,.card-grid.layout-compact{display:flex;flex-direction:column;height:auto;max-height:none}.card-grid.layout-stacked .left,.card-grid.layout-compact .left{display:contents}.card-grid.layout-stacked .clock-panel,.card-grid.layout-compact .clock-panel{order:1;padding:18px 22px 0;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08))}.card-grid.layout-stacked .center,.card-grid.layout-compact .center{order:2;border-right:0;overflow:visible}.card-grid.layout-stacked .left>.section-title,.card-grid.layout-compact .left>.section-title{order:3;padding:0 22px;margin-top:4px}.card-grid.layout-stacked .hourly-left,.card-grid.layout-compact .hourly-left{order:4;flex:none;overflow:visible;padding:0 22px 16px}.card-grid.layout-stacked .right,.card-grid.layout-compact .right{order:5;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid.layout-stacked .right,.card-grid.layout-stacked #rmap{height:300px;min-height:300px}.card-grid.layout-compact .right,.card-grid.layout-compact #rmap{height:220px;min-height:220px}.card-grid.layout-compact .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));min-height:150px}.card-grid.layout-compact .fc-slot:nth-child(n+4){display:none}
-      @container(max-width:720px){.card-grid:not(.layout-wide_panel),.card-grid.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid:not(.layout-wide_panel) .left{display:contents}.card-grid:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid:not(.layout-wide_panel) .center{order:2;border-right:0;overflow:visible}.card-grid:not(.layout-wide_panel) .left>.section-title{order:3;padding:0 20px}.card-grid:not(.layout-wide_panel) .hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.card-grid:not(.layout-wide_panel) .right{order:5}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.card-grid:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}.card-grid.layout-wide_panel{display:grid;grid-template-columns:minmax(120px,24%) minmax(230px,1fr) minmax(150px,28%);height:360px;max-height:360px}.card-grid.layout-wide_panel .left{display:flex;padding:12px 10px}.card-grid.layout-wide_panel .center{padding:12px 10px}.card-grid.layout-wide_panel .clock-time{font-size:38px}.card-grid.layout-wide_panel .clock-date{font-size:12px;margin:5px 0 7px}.card-grid.layout-wide_panel .forecast-summary{min-height:26px;margin-bottom:8px}.card-grid.layout-wide_panel .forecast-summary-text{font-size:11px;padding:6px 14px}.card-grid.layout-wide_panel .current-icon{width:44px;height:44px}.card-grid.layout-wide_panel .cond-name{font-size:21px}.card-grid.layout-wide_panel .temp-now{font-size:38px}.card-grid.layout-wide_panel .daily-strip{grid-template-columns:repeat(var(--ww-forecast-count,5),minmax(70px,1fr));gap:6px;overflow:hidden}.card-grid.layout-wide_panel .fc-temp{font-size:28px}.card-grid.layout-wide_panel .stats-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.card-grid.layout-wide_panel .right,.card-grid.layout-wide_panel #rmap{height:100%;min-height:0}}
-      @media(max-width:760px){.card-grid:not(.layout-wide_panel),.card-grid.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid:not(.layout-wide_panel) .left{display:contents}.card-grid:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid:not(.layout-wide_panel) .center{order:2;border-right:0;overflow:visible}.card-grid:not(.layout-wide_panel) .left>.section-title{order:3;padding:0 20px}.card-grid:not(.layout-wide_panel) .hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.card-grid:not(.layout-wide_panel) .right{order:5}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.card-grid:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
+      .card-grid.layout-stacked,.card-grid.layout-compact{display:flex;flex-direction:column;height:auto;max-height:none}.card-grid.layout-stacked .left,.card-grid.layout-compact .left{display:contents}.card-grid.layout-stacked .clock-panel,.card-grid.layout-compact .clock-panel{order:1;padding:18px 22px 0;background:linear-gradient(90deg,rgba(255,255,255,0.20),rgba(255,255,255,0.08))}.card-grid.layout-stacked .center,.card-grid.layout-compact .center{order:var(--ww-ord-weather,20);border-right:0;overflow:visible}.card-grid.layout-stacked .left>.section-title,.card-grid.layout-compact .left>.section-title{order:var(--ww-ord-clock-title,12);padding:0 22px;margin-top:4px}.card-grid.layout-stacked .hourly-left,.card-grid.layout-compact .hourly-left{order:var(--ww-ord-clock-hourly,13);flex:none;overflow:visible;padding:0 22px 16px}.card-grid.layout-stacked .right,.card-grid.layout-compact .right{order:var(--ww-ord-radar,30);border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid.layout-stacked .right,.card-grid.layout-stacked #rmap{height:300px;min-height:300px}.card-grid.layout-compact .right,.card-grid.layout-compact #rmap{height:220px;min-height:220px}.card-grid.layout-compact .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));min-height:150px}.card-grid.layout-compact .fc-slot:nth-child(n+4){display:none}
+      @container(max-width:720px){.card-grid:not(.layout-wide_panel),.card-grid.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid:not(.layout-wide_panel) .left{display:contents}.card-grid:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid:not(.layout-wide_panel) .center{order:var(--ww-ord-weather,20);border-right:0;overflow:visible}.card-grid:not(.layout-wide_panel) .left>.section-title{order:var(--ww-ord-clock-title,12);padding:0 20px}.card-grid:not(.layout-wide_panel) .hourly-left{order:var(--ww-ord-clock-hourly,13);flex:none;overflow:visible;padding:0 20px 16px}.card-grid:not(.layout-wide_panel) .right{order:var(--ww-ord-radar,30)}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.card-grid:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}.card-grid.layout-wide_panel{display:grid;grid-template-columns:minmax(120px,24%) minmax(230px,1fr) minmax(150px,28%);height:360px;max-height:360px}.card-grid.layout-wide_panel .left{display:flex;padding:12px 10px}.card-grid.layout-wide_panel .center{padding:12px 10px}.card-grid.layout-wide_panel .clock-time{font-size:38px}.card-grid.layout-wide_panel .clock-date{font-size:12px;margin:5px 0 7px}.card-grid.layout-wide_panel .forecast-summary{min-height:26px;margin-bottom:8px}.card-grid.layout-wide_panel .forecast-summary-text{font-size:11px;padding:6px 14px}.card-grid.layout-wide_panel .current-icon{width:44px;height:44px}.card-grid.layout-wide_panel .cond-name{font-size:21px}.card-grid.layout-wide_panel .temp-now{font-size:38px}.card-grid.layout-wide_panel .daily-strip{grid-template-columns:repeat(var(--ww-forecast-count,5),minmax(70px,1fr));gap:6px;overflow:hidden}.card-grid.layout-wide_panel .fc-temp{font-size:28px}.card-grid.layout-wide_panel .stats-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.card-grid.layout-wide_panel .right,.card-grid.layout-wide_panel #rmap{height:100%;min-height:0}}
+      @media(max-width:760px){.card-grid:not(.layout-wide_panel),.card-grid.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid:not(.layout-wide_panel) .left{display:contents}.card-grid:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid:not(.layout-wide_panel) .center{order:var(--ww-ord-weather,20);border-right:0;overflow:visible}.card-grid:not(.layout-wide_panel) .left>.section-title{order:var(--ww-ord-clock-title,12);padding:0 20px}.card-grid:not(.layout-wide_panel) .hourly-left{order:var(--ww-ord-clock-hourly,13);flex:none;overflow:visible;padding:0 20px 16px}.card-grid:not(.layout-wide_panel) .right{order:var(--ww-ord-radar,30)}.clock-time{font-size:48px}.current-row{align-items:flex-start;gap:12px;flex-wrap:wrap}.temp-block{text-align:left}.card-grid:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.right,#rmap{height:300px;min-height:300px}}
       @media(prefers-reduced-motion:reduce){:host([animations]) .ww-sun-rays,:host([animations]) .ww-sun-core,:host([animations]) .ww-cloud,:host([animations]) .ww-rain,:host([animations]) .ww-snow,:host([animations]) .ww-bolt,:host([animations]) .ww-moon,:host([animations]) .ww-moon-glow,:host([animations]) .ww-fog,:host([animations]) .hour-row,:host([animations]) .fc-slot,:host([animations]) .forecast-summary-text{animation:none!important}:host([animations]) .hour-bar-fill{transition:none!important}}
 
       .card-grid.layout-radar_bottom{display:grid;grid-template-columns:minmax(310px,28%) minmax(0,1fr);grid-template-rows:clamp(420px,28cqw,540px) 340px;height:auto;max-height:none}
@@ -1902,8 +1910,10 @@ class WeatherWiseCard extends HTMLElement {
       .card-grid.layout-radar_bottom .center{grid-column:2;grid-row:1;border-right:0;overflow:hidden}
       .card-grid.layout-radar_bottom .right{grid-column:1/-1;grid-row:2;height:340px;min-height:340px;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px;position:relative;z-index:0}
       .card-grid.layout-radar_bottom #rmap{height:340px;min-height:340px}
-      .card-grid.ww-force-stack:not(.layout-wide_panel),.card-grid.ww-force-stack.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid.ww-force-stack:not(.layout-wide_panel) .left{display:contents}.card-grid.ww-force-stack:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid.ww-force-stack:not(.layout-wide_panel) .center{order:2;border-right:0;overflow:visible}.card-grid.ww-force-stack:not(.layout-wide_panel) .left>.section-title{order:3;padding:0 20px}.card-grid.ww-force-stack:not(.layout-wide_panel) .hourly-left{order:4;flex:none;overflow:visible;padding:0 20px 16px}.card-grid.ww-force-stack:not(.layout-wide_panel) .right{order:5;height:300px;min-height:300px;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid.ww-force-stack:not(.layout-wide_panel) #rmap{height:300px;min-height:300px}.card-grid.ww-force-stack:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.card-grid.ww-force-stack:not(.layout-wide_panel) .stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .card-grid.ww-force-stack:not(.layout-wide_panel),.card-grid.ww-force-stack.no-radar:not(.layout-wide_panel){display:flex;flex-direction:column;height:auto;max-height:none}.card-grid.ww-force-stack:not(.layout-wide_panel) .left{display:contents}.card-grid.ww-force-stack:not(.layout-wide_panel) .clock-panel{order:1;padding:18px 20px 0}.card-grid.ww-force-stack:not(.layout-wide_panel) .center{order:var(--ww-ord-weather,20);border-right:0;overflow:visible}.card-grid.ww-force-stack:not(.layout-wide_panel) .left>.section-title{order:var(--ww-ord-clock-title,12);padding:0 20px}.card-grid.ww-force-stack:not(.layout-wide_panel) .hourly-left{order:var(--ww-ord-clock-hourly,13);flex:none;overflow:visible;padding:0 20px 16px}.card-grid.ww-force-stack:not(.layout-wide_panel) .right{order:var(--ww-ord-radar,30);height:300px;min-height:300px;border-top:1px solid rgba(255,255,255,0.28);border-radius:0 0 22px 22px}.card-grid.ww-force-stack:not(.layout-wide_panel) #rmap{height:300px;min-height:300px}.card-grid.ww-force-stack:not(.layout-wide_panel) .daily-strip{grid-template-columns:repeat(3,minmax(0,1fr));max-height:none}.card-grid.ww-force-stack:not(.layout-wide_panel) .stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
       @container(max-width:720px){.card-grid.layout-radar_bottom{grid-template-columns:1fr;grid-template-rows:auto auto 300px}.card-grid.layout-radar_bottom .left{grid-column:1;grid-row:1}.card-grid.layout-radar_bottom .center{grid-column:1;grid-row:2;border-right:0}.card-grid.layout-radar_bottom .right{grid-column:1;grid-row:3;height:300px;min-height:300px}.card-grid.layout-radar_bottom #rmap{height:300px;min-height:300px}}
+      @container(max-width:600px){.clock-time{font-size:58px}.clock-ampm{font-size:17px}.temp-now{font-size:46px}.temp-hilo{font-size:17px;margin-top:5px}.cond-name{font-size:26px}.current-icon{width:54px;height:54px}.current-row{gap:10px;flex-wrap:wrap}.temp-block{min-width:unset}.center{padding:14px 18px}.updated-note{font-size:12px;margin-top:4px}}
+      @container(max-width:420px){.clock-time{font-size:48px}.temp-now{font-size:38px}.cond-name{font-size:22px}.current-icon{width:46px;height:46px}}
     `;
   }
 }
@@ -2038,6 +2048,7 @@ class WeatherWiseCardEditor extends HTMLElement {
         .panel-order-list{display:flex;flex-direction:column;gap:6px}
         .panel-order-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--divider-color,rgba(0,0,0,.15));border-radius:10px;background:var(--card-background-color,#fff);cursor:grab;user-select:none;transition:box-shadow .15s,opacity .15s}
         .panel-order-item:active{cursor:grabbing}
+        .panel-order-item *{pointer-events:none}
         .panel-order-item.drag-over{box-shadow:0 0 0 2px var(--primary-color,#2a7a94);border-color:var(--primary-color,#2a7a94)}
         .panel-order-item.dragging{opacity:.4}
         .drag-handle{font-size:18px;color:var(--secondary-text-color,#536b75);line-height:1;flex-shrink:0}
@@ -2332,6 +2343,8 @@ class WeatherWiseCardEditor extends HTMLElement {
     }
     // Drag-to-reorder panel order
     let dragKey = null;
+    const allItems = () => this.shadowRoot.querySelectorAll(".panel-order-item");
+    const clearOver = () => allItems().forEach((el) => el.classList.remove("drag-over"));
     this.shadowRoot.querySelectorAll(".panel-order-item").forEach((item) => {
       item.addEventListener("dragstart", (e) => {
         dragKey = item.dataset.panel;
@@ -2340,19 +2353,21 @@ class WeatherWiseCardEditor extends HTMLElement {
       });
       item.addEventListener("dragend", () => {
         dragKey = null;
-        this.shadowRoot.querySelectorAll(".panel-order-item").forEach((el) => el.classList.remove("dragging", "drag-over"));
+        allItems().forEach((el) => el.classList.remove("dragging", "drag-over"));
+      });
+      item.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        if (item.dataset.panel === dragKey) return;
+        clearOver();
+        item.classList.add("drag-over");
       });
       item.addEventListener("dragover", (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (item.dataset.panel !== dragKey) {
-          this.shadowRoot.querySelectorAll(".panel-order-item").forEach((el) => el.classList.remove("drag-over"));
-          item.classList.add("drag-over");
-        }
       });
-      item.addEventListener("dragleave", () => item.classList.remove("drag-over"));
       item.addEventListener("drop", (e) => {
         e.preventDefault();
+        clearOver();
         if (!dragKey || item.dataset.panel === dragKey) return;
         const current = (this._config.panel_order || ["clock", "weather", "radar"]).slice();
         const fromIdx = current.indexOf(dragKey);
