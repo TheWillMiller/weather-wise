@@ -3,7 +3,7 @@
  * Home Assistant weather dashboard card with forecasts and optional radar.
  */
 
-const CARD_VERSION = "0.8.1";
+const CARD_VERSION = "0.8.2";
 const FORECAST_REFRESH_MS = 15 * 60 * 1000;
 const ENVIRONMENT_REFRESH_MS = 60 * 60 * 1000;
 const CARD_TYPES = ["radarwise-card", "radar-wise-card", "weatherwise-card", "weather-wise-card"];
@@ -68,6 +68,28 @@ const RADARWISE_DENSITIES = {
   comfortable: "Comfortable",
   slim: "Slim",
   large: "Large"
+};
+
+const RADARWISE_TIME_FORMATS = {
+  auto: "Auto",
+  "12": "12-hour",
+  "24": "24-hour"
+};
+
+const RADARWISE_FONT_FAMILIES = {
+  auto: "Home Assistant",
+  system: "System",
+  rounded: "Rounded",
+  condensed: "Condensed",
+  mono: "Monospace"
+};
+
+const RADARWISE_FONT_STACKS = {
+  auto: 'var(--ha-font-family-body,-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif)',
+  system: '-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif',
+  rounded: '"SF Pro Rounded","Arial Rounded MT Bold","Segoe UI",Roboto,Arial,sans-serif',
+  condensed: '"Aptos Narrow","Arial Narrow","Roboto Condensed","Segoe UI",Roboto,Arial,sans-serif',
+  mono: '"SFMono-Regular","Cascadia Mono",Consolas,"Liberation Mono",monospace'
 };
 
 const RADARWISE_LANGUAGES = {
@@ -961,6 +983,8 @@ class RadarWiseCard extends HTMLElement {
     const layout = String(config.layout || "auto").toLowerCase();
     const language = String(config.language || config.forecast_summary_language || "auto").toLowerCase();
     const environmentSource = String(config.environment_source || "sensors").toLowerCase();
+    const timeFormat = String(config.time_format || "auto").toLowerCase();
+    const fontFamily = String(config.font_family || "auto").toLowerCase();
     return {
       title: "Local Weather",
       humidity_entity: "",
@@ -978,6 +1002,8 @@ class RadarWiseCard extends HTMLElement {
       radar_provider: RADARWISE_RADAR[radarProvider] ? radarProvider : "auto",
       theme_mode: themeMode,
       units,
+      time_format: "auto",
+      font_family: "auto",
       hourly_count: 5,
       forecast_count: 5,
       show_timeline: true,
@@ -1003,6 +1029,8 @@ class RadarWiseCard extends HTMLElement {
       content_mode: RADARWISE_CONTENT_MODES[String(config.content_mode || "full").toLowerCase()] ? String(config.content_mode || "full").toLowerCase() : "full",
       density: RADARWISE_DENSITIES[String(config.density || "comfortable").toLowerCase()] ? String(config.density || "comfortable").toLowerCase() : "comfortable",
       language: RADARWISE_LANGUAGES[language] ? language : "auto",
+      time_format: RADARWISE_TIME_FORMATS[timeFormat] ? timeFormat : "auto",
+      font_family: RADARWISE_FONT_FAMILIES[fontFamily] ? fontFamily : "auto",
       environment_source: RADARWISE_ENVIRONMENT_SOURCES[environmentSource] ? environmentSource : "sensors",
       latitude: this._numberOr(config.latitude, undefined),
       longitude: this._numberOr(config.longitude, undefined),
@@ -1101,6 +1129,8 @@ class RadarWiseCard extends HTMLElement {
         this._config.theme_mode,
         this._config.units,
         this._language(),
+        this._config.time_format,
+        this._config.font_family,
         this._config.show_radar,
         this._config.show_timeline,
         this._config.show_forecast,
@@ -1284,7 +1314,7 @@ class RadarWiseCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>${this._styles()}</style>
-      <ha-card>
+      <ha-card style="--radarwise-font-family:${_wwEscape(RADARWISE_FONT_STACKS[this._config.font_family] || RADARWISE_FONT_STACKS.auto)}">
         <div class="card-outer">
           <div class="card-grid layout-${_wwEscape(layout)} content-${_wwEscape(content.mode)} density-${_wwEscape(density)} panels-${content.panelCount} ${content.right ? "" : "no-radar"} ${content.timeline ? "" : "no-timeline"} ${content.forecast ? "" : "no-forecast"} ${content.left ? "" : "no-left"} ${content.center ? "" : "no-center"}" style="${(() => {
   const w = this._config.column_widths || [25,50,25];
@@ -1304,7 +1334,7 @@ class RadarWiseCard extends HTMLElement {
                           <div class="clock-main">
                             <div class="clock-row">
                               <div class="clock-time" id="clock-time">${this._clockTime(now)}</div>
-                              <div class="clock-ampm" id="clock-ampm">${now.getHours() >= 12 ? this._t("pm") : this._t("am")}</div>
+                              <div class="clock-ampm" id="clock-ampm">${this._clockAmPm(now)}</div>
                             </div>
                             <div class="clock-date" id="clock-date">${this._longDate(now)}</div>
                           </div>
@@ -1464,6 +1494,8 @@ class RadarWiseCard extends HTMLElement {
       ["Radar", data.provider],
       ["Content mode", this._config.content_mode],
       ["Density", this._config.density],
+      ["Time format", this._config.time_format],
+      ["Font family", this._config.font_family],
       ["Units", data.units.temperatureUnit],
       ["Hourly count", data.hourly.length],
       ["Daily count", data.daily.length],
@@ -1494,7 +1526,7 @@ class RadarWiseCard extends HTMLElement {
     const ampm = this.shadowRoot?.getElementById("clock-ampm");
     const date = this.shadowRoot?.getElementById("clock-date");
     if (time) time.textContent = this._clockTime(now);
-    if (ampm) ampm.textContent = now.getHours() >= 12 ? this._t("pm") : this._t("am");
+    if (ampm) ampm.textContent = this._clockAmPm(now);
     if (date) date.textContent = this._longDate(now);
   }
 
@@ -2674,19 +2706,43 @@ class RadarWiseCard extends HTMLElement {
   }
 
   _clockTime(date) {
+    if (this._uses24HourTime()) return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
     return `${(date.getHours() % 12) || 12}:${String(date.getMinutes()).padStart(2, "0")}`;
+  }
+
+  _clockAmPm(date) {
+    return this._uses24HourTime() ? "" : date.getHours() >= 12 ? this._t("pm") : this._t("am");
   }
 
   _shortTime(dateLike) {
     const date = new Date(dateLike);
     if (Number.isNaN(date.getTime())) return "--";
+    if (this._uses24HourTime()) return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
     return `${(date.getHours() % 12) || 12}:${String(date.getMinutes()).padStart(2, "0")} ${date.getHours() >= 12 ? this._t("pm") : this._t("am")}`;
   }
 
   _hour(dateLike) {
     const date = new Date(dateLike);
     if (Number.isNaN(date.getTime())) return "--";
+    if (this._uses24HourTime()) return `${String(date.getHours()).padStart(2, "0")}:00`;
     return `${(date.getHours() % 12) || 12} ${date.getHours() >= 12 ? this._t("pm") : this._t("am")}`;
+  }
+
+  _uses24HourTime() {
+    const configured = String(this._config.time_format || "auto");
+    if (configured === "24") return true;
+    if (configured === "12") return false;
+    const haFormat = String(this._hass?.locale?.time_format || "").toLowerCase();
+    if (haFormat.includes("24")) return true;
+    if (haFormat.includes("12")) return false;
+    try {
+      const options = new Intl.DateTimeFormat(this._localeCode(), { hour: "numeric" }).resolvedOptions();
+      if (options.hourCycle) return options.hourCycle === "h23" || options.hourCycle === "h24";
+      const parts = new Intl.DateTimeFormat(this._localeCode(), { hour: "numeric" }).formatToParts(new Date(2020, 0, 1, 13));
+      return !parts.some((part) => part.type === "dayPeriod");
+    } catch (err) {
+      return false;
+    }
   }
 
   _dayName(dateLike) {
@@ -2747,7 +2803,7 @@ class RadarWiseCard extends HTMLElement {
     return `
       :host{--ww-wave:#2a7a94;--ww-wave-dark:#1a5f72;--ww-gold:#e8b84b;--ww-text:#0a1e28;--ww-muted:#1e4d5e;--ww-panel:rgba(255,255,255,0.35);--ww-line:rgba(42,122,148,0.20);display:block;color:var(--ww-text);font-family:var(--ha-font-family-body,-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif)}
       :host([theme-mode="auto"]){--ww-wave:var(--primary-color,#2a7a94);--ww-wave-dark:var(--accent-color,var(--primary-color,#1a5f72));--ww-gold:var(--warning-color,#e8b84b);--ww-text:var(--primary-text-color,#0a1e28);--ww-muted:var(--secondary-text-color,#1e4d5e);--ww-panel:color-mix(in srgb,var(--card-background-color,#fff) 76%,transparent);--ww-line:color-mix(in srgb,var(--primary-color,#2a7a94) 30%,transparent)}
-      ha-card{background:transparent!important;box-shadow:none!important;border-radius:22px!important;overflow:hidden}
+      ha-card{background:transparent!important;box-shadow:none!important;border-radius:22px!important;overflow:hidden;font-family:var(--radarwise-font-family,inherit)}
       *{box-sizing:border-box}
       .card-outer{container-type:inline-size;background:rgba(232,246,250,0.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:22px;border:1px solid rgba(255,255,255,0.42);box-shadow:0 4px 28px rgba(0,0,0,0.10);position:relative;overflow:hidden}
       :host([theme-mode="auto"]) .card-outer{background:linear-gradient(135deg,color-mix(in srgb,var(--card-background-color,#fff) 88%,transparent),color-mix(in srgb,var(--primary-color,#2a7a94) 14%,var(--card-background-color,#fff)))}
@@ -3309,6 +3365,16 @@ class RadarWiseCardEditor extends HTMLElement {
                 ${Object.entries(RADARWISE_LANGUAGES).map(([value, label]) => `<option value="${value}" ${(config.language || "auto") === value ? "selected" : ""}>${label}</option>`).join("")}
               </select>
             </label>
+            <label>Time format
+              <select id="time_format">
+                ${Object.entries(RADARWISE_TIME_FORMATS).map(([value, label]) => `<option value="${value}" ${(config.time_format || "auto") === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </label>
+            <label>Font
+              <select id="font_family">
+                ${Object.entries(RADARWISE_FONT_FAMILIES).map(([value, label]) => `<option value="${value}" ${(config.font_family || "auto") === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </label>
             <label>Density
               <select id="density">
                 ${Object.entries(RADARWISE_DENSITIES).map(([value, label]) => `<option value="${value}" ${(config.density || "comfortable") === value ? "selected" : ""}>${label}</option>`).join("")}
@@ -3497,7 +3563,7 @@ class RadarWiseCardEditor extends HTMLElement {
         </div>
       </div>
     `;
-    ["entity", "temperature_entity", "humidity_entity", "dew_point_entity", "air_quality_entity", "uv_index_entity", "pollen_entity", "tree_pollen_entity", "grass_pollen_entity", "weed_pollen_entity", "mold_pollen_entity", "environment_source", "country", "radar_provider", "radar_style", "radar_basemap", "radar_timeline", "title", "units", "theme_mode", "language", "density", "latitude", "longitude", "hourly_count", "forecast_count", "radar_zoom", "radar_speed"].forEach((id) => {
+    ["entity", "temperature_entity", "humidity_entity", "dew_point_entity", "air_quality_entity", "uv_index_entity", "pollen_entity", "tree_pollen_entity", "grass_pollen_entity", "weed_pollen_entity", "mold_pollen_entity", "environment_source", "country", "radar_provider", "radar_style", "radar_basemap", "radar_timeline", "title", "units", "theme_mode", "language", "time_format", "font_family", "density", "latitude", "longitude", "hourly_count", "forecast_count", "radar_zoom", "radar_speed"].forEach((id) => {
       this.shadowRoot.getElementById(id)?.addEventListener("change", (event) => this._setValue(id, event.target.value));
     });
     ["show_radar", "show_map_controls", "radar_controls", "show_warning_overlay", "show_animations", "show_timeline", "show_forecast", "show_forecast_summary", "show_environment", "timeline_autoscroll"].forEach((id) => {

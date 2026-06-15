@@ -5,7 +5,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/TheWillMiller/radar-wise?label=stars)](https://github.com/TheWillMiller/radar-wise/stargazers)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-yellow?logo=buymeacoffee)](https://buymeacoffee.com/thewillmiller)
 
-**Latest release:** `v0.8.1`
+**Latest release:** `v0.8.2`
 
 RadarWise is a Home Assistant dashboard (Lovelace) custom card for current weather, hourly and daily forecasts, precipitation details, sunrise and sunset, wind, humidity, dew point, UV index, optional AQI/pollen, and optional radar. It follows the TideWise/RiverWise visual language while staying a dashboard card, not a backend integration.
 
@@ -141,7 +141,7 @@ RadarWise was renamed from its original project name in `v0.5.0`. If Home Assist
 For quick testing before installing locally, you can add this dashboard resource:
 
 ```yaml
-url: https://cdn.jsdelivr.net/gh/TheWillMiller/radar-wise@v0.8.1/radarwise-card.js
+url: https://cdn.jsdelivr.net/gh/TheWillMiller/radar-wise@v0.8.2/radarwise-card.js
 type: module
 ```
 
@@ -243,7 +243,7 @@ RadarWise includes a Home Assistant visual editor. When adding the card from the
 - Choose United States, Canada, United Kingdom, or global/other setup
 - Choose automatic radar, NOAA radar, RainViewer radar, or no radar
 - Choose radar timeline, style, map style, and radar loop speed
-- Set title, units, forecast counts, language, and theme mode
+- Set title, units, forecast counts, language, time format, font preset, and theme mode
 - Choose card language: Auto, English, French, Spanish, German, or Portuguese
 - Choose a layout preset with visual layout tiles
 - Drag panels to reorder clock/timeline, current weather, and radar
@@ -295,6 +295,8 @@ Radar location and map controls:
 | `theme_mode` | No | `radarwise` | `radarwise` or `auto`. |
 | `units` | No | `auto` | `auto`, `imperial`, or `metric`. |
 | `language` | No | `auto` | Card display language: `auto`, `en`, `fr`, `es`, `de`, or `pt`. Auto follows Home Assistant/browser language when possible. |
+| `time_format` | No | `auto` | Clock and timestamp format: `auto`, `12`, or `24`. Auto follows the Home Assistant time setting or browser locale when possible. |
+| `font_family` | No | `auto` | Safe local font preset: `auto`, `system`, `rounded`, `condensed`, or `mono`. No remote fonts are loaded. |
 | `layout` | No | `auto` | `auto`, `wide_panel`, `stacked`, `radar_bottom`, or `compact`. Use `radar_bottom` for a full-width radar below weather content, or `stacked`/`compact` for narrow dashboards. |
 | `content_mode` | No | `full` | Smart content preset: `full`, `essentials`, `forecast`, `timeline`, `radar`, or `custom`. Use `custom` for manual visibility switches. |
 | `density` | No | `comfortable` | Sizing preset: `comfortable`, `slim`, or `large`. Slim makes thinner dashboard rows; large favors wall-panel readability. |

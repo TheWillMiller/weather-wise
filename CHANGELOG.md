@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2
+
+### Added
+
+- Added a `time_format` option with Auto, 12-hour, and 24-hour choices for the main clock, hourly rows, radar loop labels, update timestamps, and sunrise/sunset times.
+- Added a safe `font_family` preset selector using local/system font stacks only. No remote fonts or external font assets are loaded.
+
 ## 0.8.1
 
 ### Fixed
